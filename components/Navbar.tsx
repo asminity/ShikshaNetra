@@ -14,7 +14,7 @@ export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    // Check if user is logged in (using localStorage for demo)
+    // Check if user is logged in
     const checkLogin = () => {
       const loggedIn = localStorage.getItem("shikshanetra_logged_in") === "true";
       setIsLoggedIn(loggedIn);
@@ -59,9 +59,15 @@ export function Navbar() {
             <Link href="/demo" className="btn-outline text-sm">
               Live Demo
             </Link>
-            <Link href="/signup" className="btn-primary text-sm">
-              Signup
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="btn-primary text-sm">
+                Dashboard
+              </Link>
+            ) : (
+              <Link href="/signup" className="btn-primary text-sm">
+                Signup
+              </Link>
+            )}
           </div>
 
           <button
@@ -99,13 +105,23 @@ export function Navbar() {
               >
                 Live Demo
               </Link>
-              <Link
-                href="/signup"
-                onClick={() => setOpen(false)}
-                className="btn-primary w-full text-sm"
-              >
-                Signup
-              </Link>
+              {isLoggedIn ? (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className="btn-primary w-full text-sm"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <Link
+                  href="/signup"
+                  onClick={() => setOpen(false)}
+                  className="btn-primary w-full text-sm"
+                >
+                  Signup
+                </Link>
+              )}
             </div>
           </div>
         )}

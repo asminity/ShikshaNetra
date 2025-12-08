@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [role, setRole] = useState("Mentor");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{
     fullName?: string;
     email?: string;
@@ -20,7 +21,7 @@ export default function SignupPage() {
     confirmPassword?: string;
   }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const nextErrors: typeof errors = {};
     if (!fullName) nextErrors.fullName = "Full name is required.";
@@ -33,12 +34,47 @@ export default function SignupPage() {
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    // TODO: Replace demo signup with real signup API call and persistence
-    localStorage.setItem("shikshanetra_logged_in", "true");
-    showToast("Demo signup successful. Redirecting...");
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 1000);
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: fullName,
+          email,
+          password,
+          role: role.toLowerCase().replace(" ", "_"),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast(data.error || "Signup failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Store access token and user info
+      localStorage.setItem("shikshanetra_token", data.accessToken);
+      localStorage.setItem("shikshanetra_user", JSON.stringify(data.user));
+      localStorage.setItem("shikshanetra_logged_in", "true");
+
+      showToast("Account created successfully! Redirecting...");
+      
+      // Redirect to dashboard page
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1000);
+    } catch (error) {
+      console.error("Signup error:", error);
+      showToast("❌ An error occurred during signup");
+      setLoading(false);
+    }
   };
 
   return (
@@ -139,8 +175,12 @@ export default function SignupPage() {
                 )}
               </div>
 
-              <button type="submit" className="btn-primary w-full text-sm">
-                Create Account
+              <button 
+                type="submit" 
+                className="btn-primary w-full text-sm"
+                disabled={loading}
+              >
+                {loading ? "Creating Account..." : "Create Account"}
               </button>
             </form>
 

@@ -10,21 +10,52 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const nextErrors: typeof errors = {};
     if (!email) nextErrors.email = "Email is required.";
     if (!password) nextErrors.password = "Password is required.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    // TODO: Replace demo auth with real authentication API call
-    localStorage.setItem("shikshanetra_logged_in", "true");
-    showToast("Demo login successful. Redirecting...");
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 1000);
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast(data.error || "Login failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Store access token and user info
+      localStorage.setItem("shikshanetra_token", data.accessToken);
+      localStorage.setItem("shikshanetra_user", JSON.stringify(data.user));
+      localStorage.setItem("shikshanetra_logged_in", "true");
+
+      showToast("Login successful! Redirecting...");
+      
+      // Redirect to dashboard page
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1000);
+    } catch (error) {
+      console.error("Login error:", error);
+      showToast("❌ An error occurred during login");
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,8 +111,12 @@ export default function LoginPage() {
                   <span>Remember me</span>
                 </label>
               </div>
-              <button type="submit" className="btn-primary w-full text-sm">
-                Log In
+              <button 
+                type="submit" 
+                className="btn-primary w-full text-sm" 
+                disabled={loading}
+              >
+                {loading ? "Logging in..." : "Log In"}
               </button>
             </form>
             <p className="mt-6 text-center text-xs text-slate-600">

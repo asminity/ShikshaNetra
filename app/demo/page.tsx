@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { useToast } from "@/components/ToastContext";
+import { getWithAuth, postWithAuth } from "@/lib/utils/api";
 
 type Metric = {
   name: string;
@@ -11,20 +12,35 @@ type Metric = {
   source: string;
 };
 
-const mockMetrics: Metric[] = [
-  { name: "Clarity", score: 8.1, source: "Audio + Text" },
-  { name: "Confidence", score: 8.4, source: "Audio" },
-  { name: "Engagement", score: 7.9, source: "Video" },
-  { name: "Technical Depth", score: 8.3, source: "Transcript" },
-  { name: "Interaction", score: 7.8, source: "Q&A Cues" }
-];
+type AnalysisResult = {
+  id: string;
+  clarityScore: number;
+  confidenceScore: number;
+  engagementScore: number;
+  technicalDepth: number;
+  interactionIndex: number;
+  dominantEmotion: string;
+  topic: string;
+  transcript: string;
+  coachFeedbackError?: string;
+  coachSuggestions?: string[];
+  coachStrengths?: string[];
+  videoMetadata: {
+    fileName: string;
+  };
+  createdAt?: string;
+};
 
-const cohortRows = [
-  { mentor: "Ananya Rao", subject: "Data Structures", score: 86, sessions: 12, trend: "up" },
-  { mentor: "Rohit Singh", subject: "AI", score: 79, sessions: 9, trend: "flat" },
-  { mentor: "Meera Iyer", subject: "DBMS", score: 90, sessions: 15, trend: "up" },
-  { mentor: "Kunal Shah", subject: "OS", score: 74, sessions: 7, trend: "down" }
-];
+type CoordinatorAnalysis = {
+  _id: string;
+  topic: string;
+  clarityScore: number;
+  confidenceScore: number;
+  engagementScore: number;
+  technicalDepth: number;
+  interactionIndex: number;
+  createdAt: string;
+};
 
 export default function DemoPage() {
   const { showToast } = useToast();
@@ -34,22 +50,99 @@ export default function DemoPage() {
   const [subject, setSubject] = useState("Data Structures");
   const [language, setLanguage] = useState("English – Indian");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileObject, setFileObject] = useState<File | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [coordinatorAnalyses, setCoordinatorAnalyses] = useState<CoordinatorAnalysis[]>([]);
+  const [coordinatorLoading, setCoordinatorLoading] = useState(false);
 
-  const handleRunDemo = () => {
+  useEffect(() => {
+    // Check if user is logged in
+    const token = localStorage.getItem("shikshanetra_token");
+    setIsLoggedIn(!!token);
+
+    if (token && activeTab === "coordinator") {
+      fetchCoordinatorAnalyses();
+    }
+  }, [activeTab]);
+
+  const fetchCoordinatorAnalyses = async () => {
+    setCoordinatorLoading(true);
+    try {
+      const response = await getWithAuth("/api/analyze/history?limit=20");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch analyses");
+      }
+
+      const data = await response.json();
+      setCoordinatorAnalyses(data.analyses || []);
+    } catch (error) {
+      console.error("Error fetching coordinator analyses:", error);
+      showToast("Failed to load analysis data");
+    } finally {
+      setCoordinatorLoading(false);
+    }
+  };
+
+  const handleRunDemo = async () => {
     if (loading) return;
+    
+    if (!fileObject) {
+      showToast("Please select a video file first.");
+      return;
+    }
+
+    if (!isLoggedIn) {
+      showToast("Please login to analyze videos.");
+      return;
+    }
+
     setLoading(true);
-    // TODO: Replace mock analysis with API call to /api/analyze-session
-    setTimeout(() => {
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", fileObject);
+      formData.append("subject", subject);
+      formData.append("language", language);
+
+      const response = await postWithAuth("/api/analyze", formData, "multipart/form-data");
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Analysis failed");
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || "Analysis failed");
+      }
+
+      // Fetch the saved analysis details
+      const analysisResponse = await getWithAuth(`/api/analyze/${result.analysisId}`);
+
+      if (analysisResponse.ok) {
+        const analysisData = await analysisResponse.json();
+        setAnalysisResult(analysisData.analysis);
+        setEvaluated(true);
+        showToast("Analysis completed successfully!");
+      } else {
+        throw new Error("Failed to fetch analysis results");
+      }
+    } catch (error) {
+      console.error("Error during analysis:", error);
+      showToast(error instanceof Error ? error.message : "Error during analysis. Please try again.");
+    } finally {
       setLoading(false);
-      setEvaluated(true);
-      showToast("Demo analysis completed. Results updated below.");
-    }, 1800);
+    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setFileName(file.name);
+      setFileObject(file);
     }
   };
 
@@ -58,6 +151,48 @@ export default function DemoPage() {
     if (trend === "down") return "▼";
     return "▬";
   };
+
+  const getOverallScore = () => {
+    if (!analysisResult) return 0;
+    const avg = (
+      analysisResult.clarityScore +
+      analysisResult.confidenceScore +
+      analysisResult.engagementScore +
+      (analysisResult.technicalDepth * 10) +
+      (analysisResult.interactionIndex / 10)
+    ) / 5;
+    return Math.round(avg);
+  };
+
+  const getOverallScoreFromData = (analysis: CoordinatorAnalysis) => {
+    const avg = (
+      analysis.clarityScore +
+      analysis.confidenceScore +
+      analysis.engagementScore +
+      (analysis.technicalDepth * 10) +
+      (analysis.interactionIndex / 10)
+    ) / 5;
+    return Math.round(avg);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const metrics: Metric[] = analysisResult ? [
+    { name: "Clarity", score: analysisResult.clarityScore / 10, source: "Audio" },
+    { name: "Confidence", score: analysisResult.confidenceScore / 10, source: "Audio" },
+    { name: "Engagement", score: analysisResult.engagementScore / 10, source: "Video" },
+    { name: "Technical Depth", score: analysisResult.technicalDepth, source: "Text" },
+    { name: "Interaction", score: analysisResult.interactionIndex / 10, source: "Text" }
+  ] : [
+    { name: "Clarity", score: 0, source: "Audio" },
+    { name: "Confidence", score: 0, source: "Audio" },
+    { name: "Engagement", score: 0, source: "Video" },
+    { name: "Technical Depth", score: 0, source: "Text" },
+    { name: "Interaction", score: 0, source: "Text" }
+  ];
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-12 pt-8 sm:pt-10">
@@ -164,13 +299,21 @@ export default function DemoPage() {
               <button
                 type="button"
                 onClick={handleRunDemo}
-                className="btn-primary px-5 py-2 text-xs sm:text-sm"
+                disabled={loading || !fileObject || !isLoggedIn}
+                className="btn-primary px-5 py-2 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "Running AI Evaluation…" : "Run AI Evaluation (Demo)"}
+                {loading ? "Running AI Evaluation…" : "Run AI Evaluation"}
               </button>
-              <p className="text-[11px] text-slate-500">
-                Demo only – analysis is simulated with representative scores.
-              </p>
+              {!isLoggedIn && (
+                <p className="text-[11px] text-rose-600">
+                  Please login to analyze videos
+                </p>
+              )}
+              {isLoggedIn && (
+                <p className="text-[11px] text-slate-500">
+                  Upload and analyze your teaching session
+                </p>
+              )}
             </div>
           </Card>
 
@@ -183,97 +326,136 @@ export default function DemoPage() {
                     Overall Mentor Score
                   </p>
                   <p className="mt-1 text-2xl font-semibold text-slate-900">
-                    {evaluated ? "82/100" : "--/100"}
+                    {evaluated ? `${getOverallScore()}/100` : "--/100"}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Based on last uploaded session ({subject}, {language}).
+                    Based on {evaluated ? analysisResult?.videoMetadata.fileName : "last uploaded session"} ({subject}, {language}).
                   </p>
                 </div>
                 <div className="flex flex-col items-end text-[11px]">
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
-                    {evaluated ? "Ready" : "Waiting for run"}
+                  <span className={`rounded-full px-3 py-1 font-medium ${
+                    evaluated 
+                      ? "bg-emerald-50 text-emerald-700" 
+                      : "bg-slate-50 text-slate-500"
+                  }`}>
+                    {evaluated ? "Completed" : "Waiting for analysis"}
                   </span>
-                  <span className="mt-1 text-slate-500">
-                    Cohort percentile: {evaluated ? "78th" : "--"}
-                  </span>
+                  {evaluated && analysisResult && (
+                    <span className="mt-1 text-slate-500">
+                      Emotion: {analysisResult.dominantEmotion}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {mockMetrics.map((metric) => (
-                  <div
-                    key={metric.name}
-                    className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-800">
-                        {metric.name}
-                      </span>
-                      <span className="text-[11px] font-semibold text-primary-700">
-                        {evaluated ? metric.score.toFixed(1) : "-"}/10
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between">
-                      <div className="mr-2 h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
-                        <div
-                          className={`h-full rounded-full bg-gradient-to-r from-primary-400 to-accent-400 transition-all duration-500 ${
-                            evaluated ? "w-[80%]" : "w-0"
-                          }`}
-                        />
+                {metrics.map((metric) => {
+                  const percentage = evaluated ? (metric.score / 10) * 100 : 0;
+                  return (
+                    <div
+                      key={metric.name}
+                      className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-slate-800">
+                          {metric.name}
+                        </span>
+                        <span className="text-[11px] font-semibold text-primary-700">
+                          {evaluated ? metric.score.toFixed(1) : "-"}/10
+                        </span>
                       </div>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">
-                        {metric.source}
-                      </span>
+                      <div className="mt-1 flex items-center justify-between">
+                        <div className="mr-2 h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-primary-400 to-accent-400 transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">
+                          {metric.source}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
 
             <Card className="p-5">
               <h3 className="text-sm font-semibold text-slate-900">
-                AI Feedback Summary (Sample)
+                AI Feedback Summary
               </h3>
               <p className="mt-1 text-xs text-slate-600">
-                Generated feedback is tailored per session to keep reviews consistent and
-                constructive.
+                {evaluated ? "Generated feedback based on your session analysis" : "Upload and analyze a video to see feedback"}
               </p>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                    Strengths
-                  </p>
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-700">
-                    <li>
-                      Concepts were broken into clear, well-paced explanations with minimal filler
-                      words.
-                    </li>
-                    <li>
-                      Visual cues and board usage aligned well with verbal explanations, reducing
-                      confusion.
-                    </li>
-                    <li>
-                      Maintained a confident tone even when handling student questions.
-                    </li>
-                  </ul>
+              {evaluated && analysisResult && !analysisResult.coachFeedbackError ? (
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Strengths
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-700">
+                      {analysisResult.coachStrengths && analysisResult.coachStrengths.length > 0 ? (
+                        analysisResult.coachStrengths.map((strength, idx) => (
+                          <li key={idx}>{strength}</li>
+                        ))
+                      ) : (
+                        <>
+                          <li>High engagement score of {analysisResult.engagementScore.toFixed(1)}%</li>
+                          <li>Clear audio with clarity score of {analysisResult.clarityScore.toFixed(1)}</li>
+                          <li>Good technical depth in content delivery</li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-accent-700">
+                      Suggestions
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-700">
+                      {analysisResult.coachSuggestions && analysisResult.coachSuggestions.length > 0 ? (
+                        analysisResult.coachSuggestions.map((suggestion, idx) => (
+                          <li key={idx}>{suggestion}</li>
+                        ))
+                      ) : (
+                        <>
+                          <li>Consider adding more interactive elements to boost engagement</li>
+                          <li>Maintain consistent pace throughout the session</li>
+                          <li>Add visual aids to complement verbal explanations</li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-accent-700">
-                    Suggestions
+              ) : evaluated && analysisResult?.coachFeedbackError ? (
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs text-amber-800">
+                    <strong>Note:</strong> AI feedback generation is temporarily unavailable. Your analysis scores are available above.
                   </p>
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-700">
-                    <li>
-                      Add short recaps after each major concept to reinforce long topics like trees
-                      and graphs.
-                    </li>
-                    <li>
-                      Invite more quick check-in questions to drive interaction and engagement.
-                    </li>
-                    <li>
-                      Slow down slightly when introducing new notation or definitions.
-                    </li>
-                  </ul>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Strengths
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-400">
+                      <li>Analysis results will appear here</li>
+                      <li>Showing your teaching strengths</li>
+                      <li>Based on AI evaluation</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-accent-700">
+                      Suggestions
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-400">
+                      <li>Personalized improvement tips</li>
+                      <li>Actionable recommendations</li>
+                      <li>Best practices for teaching</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
             </Card>
           </div>
         </div>
@@ -321,69 +503,72 @@ export default function DemoPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-2 text-left font-medium text-slate-600">
-                    Mentor Name
+                    Date
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-slate-600">
-                    Subject
+                    Topic
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-slate-600">
-                    Latest Score
+                    Overall Score
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-slate-600">
-                    Sessions Evaluated
+                    Key Metrics
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-slate-600">
-                    Trend
+                    Status
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {cohortRows.map((row) => (
-                  <tr key={row.mentor} className="hover:bg-slate-50/80">
-                    <td className="whitespace-nowrap px-4 py-2 text-slate-800">
-                      {row.mentor}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-slate-600">
-                      {row.subject}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-slate-800">
-                      <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700">
-                        {row.score}/100
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-slate-600">
-                      {row.sessions}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-slate-600">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${
-                          row.trend === "up"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : row.trend === "down"
-                            ? "bg-rose-50 text-rose-700"
-                            : "bg-slate-50 text-slate-600"
-                        }`}
-                      >
-                        <span>{trendIcon(row.trend)}</span>
-                        <span>
-                          {row.trend === "up"
-                            ? "Improving"
-                            : row.trend === "down"
-                            ? "Watchlist"
-                            : "Stable"}
-                        </span>
-                      </span>
+                {coordinatorLoading ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                      Loading analyses...
                     </td>
                   </tr>
-                ))}
+                ) : coordinatorAnalyses.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                      No analyses found. Start analyzing videos to see them here.
+                    </td>
+                  </tr>
+                ) : (
+                  coordinatorAnalyses.slice(0, 10).map((analysis, idx) => (
+                    <tr key={analysis._id} className="hover:bg-slate-50/80">
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-700">
+                        {formatDate(analysis.createdAt)}
+                      </td>
+                      <td className="px-4 py-2 text-slate-800">
+                        {analysis.topic}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-800">
+                        <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700">
+                          {getOverallScoreFromData(analysis)}/100
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">
+                        <span className="text-xs">
+                          C: {(analysis.clarityScore / 10).toFixed(1)} | 
+                          E: {(analysis.engagementScore / 10).toFixed(1)}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-slate-600">
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] bg-emerald-50 text-emerald-700">
+                          Completed
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-
-          <p className="mt-3 text-[11px] text-slate-500">
-            Data shown is demo/sample only. In production, this view would connect to aggregated
-            mentor evaluation data.
-          </p>
+          {coordinatorAnalyses.length > 0 && (
+            <p className="mt-3 text-[11px] text-slate-500">
+              Showing {Math.min(10, coordinatorAnalyses.length)} of {coordinatorAnalyses.length} total analyses. 
+              Scores shown: C=Clarity, E=Engagement.
+            </p>
+          )}
         </Card>
       )}
     </div>
