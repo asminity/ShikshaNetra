@@ -1,9 +1,1 @@
-{
-  "/demo/page": "app/demo/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/platform/page": "app/platform/page.js",
-  "/page": "app/page.js",
-  "/insights/page": "app/insights/page.js",
-  "/api/analyze/history/route": "app/api/analyze/history/route.js",
-  "/api/auth/refresh/route": "app/api/auth/refresh/route.js"
-}
+{}
