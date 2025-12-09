@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { useToast } from "@/components/ToastContext";
@@ -27,13 +28,27 @@ const cohortRows = [
 ];
 
 export default function DemoPage() {
+  const router = useRouter();
   const { showToast } = useToast();
+  const isClient = typeof window !== "undefined";
+  const [authChecked, setAuthChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<"mentor" | "coordinator">("mentor");
   const [loading, setLoading] = useState(false);
   const [evaluated, setEvaluated] = useState(false);
   const [subject, setSubject] = useState("Data Structures");
   const [language, setLanguage] = useState("English – Indian");
   const [fileName, setFileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storageLogin = localStorage.getItem("shikshanetra_logged_in") === "true";
+    const cookieLogin = document.cookie.includes("shikshanetra_logged_in=true");
+    const loggedIn = storageLogin || cookieLogin;
+    if (!loggedIn) {
+      router.replace("/login");
+      return;
+    }
+    setAuthChecked(true);
+  }, [router]);
 
   const handleRunDemo = () => {
     if (loading) return;
@@ -58,6 +73,8 @@ export default function DemoPage() {
     if (trend === "down") return "▼";
     return "▬";
   };
+
+  if (!isClient || !authChecked) return null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-12 pt-8 sm:pt-10">

@@ -21,6 +21,7 @@ export default function LoginPage() {
     if (Object.keys(nextErrors).length > 0) return;
     // TODO: Replace demo auth with real authentication API call
     localStorage.setItem("shikshanetra_logged_in", "true");
+    document.cookie = "shikshanetra_logged_in=true; path=/; max-age=604800";
     showToast("Demo login successful. Redirecting...");
     setTimeout(() => {
       window.location.href = "/";
