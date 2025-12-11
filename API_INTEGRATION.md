@@ -1,20 +1,20 @@
-# ShikshaNetra Backend API Integration
+# 🔗 ShikshaNetra Backend API Integration
 
-## Overview
+## 🌟 Overview
 
 The ShikshaNetra backend integrates with the ML microservice running on port 8000 to provide video analysis capabilities for teaching sessions.
 
-## Architecture
+## 🧱 Architecture
 
 ```
-Frontend (Next.js) → Backend API (Port 3000) → ML Microservice (Port 8000)
+Frontend (Next.js) → Backend API (Port 3000) → ML Microservice
                            ↓
                     MongoDB Atlas
 ```
 
-## API Endpoints
+## 🚀 API Endpoints
 
-### Authentication
+### 🔐 Authentication
 
 #### POST `/api/auth/signup`
 Register a new user
@@ -56,7 +56,7 @@ Refresh access token using refresh token cookie
 #### POST `/api/auth/logout`
 Logout and clear refresh token
 
-### Video Analysis
+### 🎬 Video Analysis
 
 #### POST `/api/analyze`
 Analyze a teaching video with full AI coaching feedback
@@ -176,7 +176,7 @@ Authorization: Bearer <access_token>
 - `limit`: Results limit
 - `skip`: Pagination skip
 
-### Database Initialization
+### 🗄️ Database Initialization
 
 #### POST `/api/db/init`
 Initialize database indexes (run once during setup)
@@ -186,7 +186,7 @@ Initialize database indexes (run once during setup)
 x-admin-secret: <ADMIN_SECRET>
 ```
 
-## Environment Variables
+## 🔧 Environment Variables
 
 Create a `.env.local` file:
 
@@ -201,17 +201,14 @@ MONGODB_URI=
 # Admin Secret
 ADMIN_SECRET=your-admin-secret
 
-# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:3000
 
-# ML Microservice
-ML_MICROSERVICE_URL=http://localhost:8000
-
-# Environment
-NODE_ENV=development
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-## Database Schema
+## 🧬 Database Schema
 
 ### Users Collection
 ```typescript
@@ -268,7 +265,7 @@ NODE_ENV=development
 }
 ```
 
-## Setup Instructions
+## ⚙️ Setup Instructions
 
 1. **Install Dependencies:**
    ```bash
@@ -281,12 +278,11 @@ NODE_ENV=development
    - Set JWT secrets
    - Set admin secret
 
-3. **Start ML Microservice:**
-   ```bash
-   cd ml-service
-   python api.py
-   ```
-   Service should be running on http://localhost:8000
+3. **Start Model Service (choose one):**
+   - Use the deployed Hugging Face Space:
+     - https://huggingface.co/spaces/genathon00/sikshanetra-model  
+
+   - See `model/README.md` for more information.
 
 4. **Initialize Database Indexes:**
    ```bash
@@ -300,7 +296,7 @@ NODE_ENV=development
    ```
    Server will be running on http://localhost:3000
 
-## Testing the Integration
+## ✅ Testing the Integration
 
 ### 1. Register a User
 ```bash
@@ -341,7 +337,7 @@ curl http://localhost:3000/api/analyze/history?limit=5 \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-## Error Handling
+## ⚠️ Error Handling
 
 All endpoints return structured error responses:
 
@@ -364,7 +360,7 @@ Common HTTP status codes:
 - `500`: Internal server error
 - `503`: Service unavailable (ML service down)
 
-## Features
+## ✨ Features
 
 ✅ JWT authentication with access & refresh tokens  
 ✅ MongoDB Atlas integration  
@@ -376,6 +372,6 @@ Common HTTP status codes:
 ✅ Type-safe with TypeScript  
 ✅ Error handling and logging  
 
-## Support
+## 💬 Support
 
-For issues or questions, check the ML service documentation at http://localhost:8000/docs
+For issues or questions, check the ML service documentation at https://huggingface.co/spaces/genathon00/sikshanetra-model, or the model README in `model/README.md`.
