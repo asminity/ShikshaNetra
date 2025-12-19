@@ -8,6 +8,7 @@ import { useToast } from "@/components/ToastContext";
 import { getWithAuth, postWithAuth } from "@/lib/utils/api";
 import { VideoUploadZone } from "@/components/VideoUploadZone";
 import { EnhancedJobTracker } from "@/components/EnhancedJobTracker";
+import { Sparkles, Check } from "lucide-react";
 
 type AnalysisResult = {
   id: string;
@@ -36,9 +37,6 @@ export default function UploadPage() {
   const [language, setLanguage] = useState("English – Indian");
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileObject, setFileObject] = useState<File | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
-    null
-  );
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -66,7 +64,8 @@ export default function UploadPage() {
   };
 
   const [jobs, setJobs] = useState<JobItem[]>([]);
-  const [jobsLoading, setJobsLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [jobsLoading, setJobsLoading] = useState(false); 
   const prevJobsRef = useRef<Map<string, JobStatus>>(new Map());
   const [expandedJobIds, setExpandedJobIds] = useState<Record<string, boolean>>(
     {}
@@ -74,7 +73,7 @@ export default function UploadPage() {
   const [messageTick, setMessageTick] = useState(0);
 
   useEffect(() => {
-    // Check authentication
+    // Auth Check
     const token = localStorage.getItem("shikshanetra_token");
     const loggedIn = localStorage.getItem("shikshanetra_logged_in") === "true";
     if (!token && !loggedIn) {
@@ -132,17 +131,7 @@ export default function UploadPage() {
     () => jobs.filter((j) => j.status !== "completed" && j.status !== "failed"),
     [jobs]
   );
-
-  const completedJobs = useMemo(
-    () => jobs.filter((j) => j.status === "completed"),
-    [jobs]
-  );
-
-  const failedJobs = useMemo(
-    () => jobs.filter((j) => j.status === "failed"),
-    [jobs]
-  );
-
+  
   const hasExpandedPending = useMemo(
     () => pendingJobs.some((j) => expandedJobIds[j.id]),
     [pendingJobs, expandedJobIds]
@@ -229,7 +218,7 @@ export default function UploadPage() {
       );
 
       if (!response.ok) {
-        const text = await response.text(); // ✅ SAFE
+        const text = await response.text();
         throw new Error(text || "Analysis failed");
       }
 
@@ -250,7 +239,6 @@ export default function UploadPage() {
       // Reset upload controls so user can schedule multiple jobs
       setFileObject(null);
       setFileName(null);
-      setAnalysisResult(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -269,90 +257,89 @@ export default function UploadPage() {
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      setFileObject(file);
-      setAnalysisResult(null);
-    }
-  };
-
   if (!isAuthenticated) {
     return null; // Will redirect
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-12 pt-8 sm:pt-10">
-      <PageHeader
-        title="Upload Video for Analysis"
-        subtitle="Upload your teaching session video to receive comprehensive AI-powered analysis and feedback."
-      />
+    <div className="min-h-screen bg-white pb-20 pt-8 sm:pt-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6"> 
+           {/* Header */}
+           <div className="mb-10 max-w-2xl">
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-3">
+                 Upload Session Video
+              </h1>
+              <p className="text-lg text-slate-500 leading-relaxed">
+                 Upload your teaching session for comprehensive AI analysis. We'll generate minute-by-minute insights on your clarity, engagement, and confidence.
+              </p>
+           </div>
+           
+           <div className="h-px w-full bg-slate-100 mb-10"></div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-        {/* Upload Panel */}
-        <VideoUploadZone
-          fileName={fileName}
-          subject={subject}
-          language={language}
-          loading={loading}
-          onFileSelect={(file) => {
-            setFileName(file.name);
-            setFileObject(file);
-            setAnalysisResult(null);
-          }}
-          onSubjectChange={(value) => setSubject(value)}
-          onLanguageChange={(value) => setLanguage(value)}
-          onUpload={handleRunAnalysis}
-          onRemoveFile={() => {
-            setFileObject(null);
-            setFileName(null);
-            setAnalysisResult(null);
-            if (fileInputRef.current) {
-              fileInputRef.current.value = "";
-            }
-          }}
-        />
+           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 text-slate-900">
+               
+               {/* Left Column: Upload Zone (7 cols) */}
+               <div className="lg:col-span-7 space-y-8">
+                  <div className="bg-white rounded-2xl p-1">
+                      <VideoUploadZone
+                        fileName={fileName}
+                        subject={subject}
+                        language={language}
+                        loading={loading}
+                        onFileSelect={(file) => {
+                          setFileName(file.name);
+                          setFileObject(file);
+                        }}
+                        onSubjectChange={(value) => setSubject(value)}
+                        onLanguageChange={(value) => setLanguage(value)}
+                        onUpload={handleRunAnalysis}
+                        onRemoveFile={() => {
+                          setFileObject(null);
+                          setFileName(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
+                      />
+                  </div>
+               </div>
 
-        {/* Info Panel */}
-        <div className="space-y-4">
-          <EnhancedJobTracker
-            jobs={jobs}
-            expandedJobIds={expandedJobIds}
-            onToggleExpand={toggleJobExpanded}
-            messageTick={messageTick}
-            getRotatingMessage={getRotatingMessage}
-          />
+               {/* Right Column: Info & Jobs (5 cols) */}
+               <div className="lg:col-span-5 space-y-10">
+                   
+                   {/* Job Tracker */}
+                   <EnhancedJobTracker
+                      jobs={jobs}
+                      expandedJobIds={expandedJobIds}
+                      onToggleExpand={toggleJobExpanded}
+                      messageTick={messageTick}
+                      getRotatingMessage={getRotatingMessage}
+                   />
 
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold text-slate-900 mb-3">
-              What You'll Get
-            </h3>
-            <ul className="space-y-2 text-xs text-slate-700">
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 mt-0.5">✓</span>
-                <span>
-                  Comprehensive analysis of clarity, engagement, and confidence
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 mt-0.5">✓</span>
-                <span>
-                  AI-generated feedback with strengths and improvement areas
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 mt-0.5">✓</span>
-                <span>Detailed performance metrics and scores</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 mt-0.5">✓</span>
-                <span>Actionable suggestions for improvement</span>
-              </li>
-            </ul>
-          </Card>
+                   {/* Features / Value Prop */}
+                   <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100/50">
+                       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                           <Sparkles className="h-4 w-4 text-purple-500" /> What You'll Get
+                       </h3>
+                       <ul className="space-y-3">
+                           {[
+                               "Minute-by-minute performance graphs",
+                               "Audio clarity & confidence scores",
+                               "Video engagement & gesture analysis",
+                               "Personalized coaching feedback"
+                           ].map((item, i) => (
+                               <li key={i} className="flex items-start gap-3 text-sm text-slate-600">
+                                   <div className="mt-0.5 h-4 w-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                                       <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                                   </div>
+                                   {item}
+                               </li>
+                           ))}
+                       </ul>
+                   </div>
+               </div>
+           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -8,6 +8,26 @@ import Link from "next/link";
 import { getWithAuth } from "@/lib/utils/api";
 import { TimeSegments, TimeSegment } from "@/components/TimeSegments";
 import { MinuteWiseAnalytics } from "@/components/MinuteWiseAnalytics";
+import { ScoreCard } from "@/components/ScoreCard";
+import { 
+  ChevronLeft, 
+  Share2, 
+  Download, 
+  Clock, 
+  Languages, 
+  BookOpen, 
+  AlertCircle, 
+  CheckCircle2, 
+  Zap, 
+  Activity, 
+  Smile, 
+  Mic, 
+  Search,
+  ChevronDown,
+  ChevronUp,
+  BrainCircuit,
+  Lightbulb
+} from "lucide-react";
 
 interface Analysis {
   id: string;
@@ -64,6 +84,11 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingVideo, setLoadingVideo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  
+  // UI States
+  const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
+  const [transcriptSearch, setTranscriptSearch] = useState("");
+  const [showStickyHeader, setShowStickyHeader] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in
@@ -76,6 +101,13 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     }
 
     fetchAnalysisReport();
+    
+    // Scroll listener for sticky header
+    const handleScroll = () => {
+      setShowStickyHeader(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
@@ -135,22 +167,15 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     });
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-rose-600";
-  };
-
-  const getScoreBgColor = (score: number) => {
-    if (score >= 80) return "bg-green-100";
-    if (score >= 60) return "bg-yellow-100";
-    return "bg-rose-100";
-  };
-
-  // Generate summary text based on scores
-  const generateSummary = () => {
-    if (!analysis) return "";
+  
+  // Generate summary text based on scores if AI summary is missing
+  const getSummaryText = () => {
+    if (analysis?.coachFeedback?.performance_summary) {
+      return analysis.coachFeedback.performance_summary;
+    }
     
+    // Fallback logic
+    if (!analysis) return "";
     const avgScore = (
       analysis.clarityScore +
       analysis.confidenceScore +
@@ -159,24 +184,20 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     ) / 4;
 
     let summary = `This teaching session on "${analysis.topic}" demonstrates `;
+    if (avgScore >= 80) summary += "strong overall performance with excellent clarity.";
+    else if (avgScore >= 60) summary += "solid performance with room for improvement.";
+    else summary += "areas that need significant attention.";
     
-    if (avgScore >= 80) {
-      summary += "strong overall performance with excellent clarity, engagement, and technical depth. ";
-    } else if (avgScore >= 60) {
-      summary += "solid performance with room for improvement in certain areas. ";
-    } else {
-      summary += "areas that need attention, particularly in engagement and clarity. ";
-    }
-
-    if (analysis.coachFeedback?.strengths && analysis.coachFeedback.strengths.length > 0) {
-      summary += `Key strengths include ${analysis.coachFeedback.strengths[0].toLowerCase()}. `;
-    }
-
-    if (analysis.coachFeedback?.weaknesses && analysis.coachFeedback.weaknesses.length > 0) {
-      summary += `Focus areas for improvement: ${analysis.coachFeedback.weaknesses[0].toLowerCase()}.`;
-    }
-
     return summary;
+  };
+  
+  const getOverallStatus = () => {
+    if (!analysis) return { label: "N/A", color: "gray" };
+    const avg = (analysis.clarityScore + analysis.engagementScore + analysis.confidenceScore + analysis.technicalDepth) / 4;
+    
+    if (avg >= 80) return { label: "Excellent Session", color: "green", icon: <CheckCircle2 className="h-5 w-5" /> };
+    if (avg >= 60) return { label: "Good Session", color: "blue", icon: <CheckCircle2 className="h-5 w-5" /> };
+    return { label: "Needs Improvement", color: "orange", icon: <AlertCircle className="h-5 w-5" /> };
   };
 
   // Generate time segments from analysis data
@@ -186,8 +207,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
 
     const segments: TimeSegment[] = [];
 
-    // Example: Highlight segments based on engagement scores
-    // In production, this would come from time-series data
+    // Example logic
     if (analysis.engagementScore >= 80) {
       segments.push({
         startTime: 0,
@@ -207,375 +227,409 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         description: "Reduced clarity in explanation - consider slowing pace",
       });
     }
-
-    if (analysis.interactionIndex < 5) {
-      segments.push({
-        startTime: 600,
-        endTime: 720,
-        label: "Low Interaction Period",
-        type: "issue",
-        description: "Minimal student interaction - consider adding questions or activities",
-      });
-    }
-
+    
+    // Add logic to use audio/video per minute data if available for segments?
+    // For now keeping simple fallback + API segments if existed.
+    
     return segments;
+  };
+  
+  const handleTranscriptSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setTranscriptSearch(e.target.value);
+      if (e.target.value && !isTranscriptExpanded) setIsTranscriptExpanded(true);
+  };
+  
+  // Highlight keywords in transcript
+  const getHighlightedTranscript = (text: string) => {
+      if (!transcriptSearch) return text;
+      
+      const parts = text.split(new RegExp(`(${transcriptSearch})`, 'gi'));
+      return (
+          <>
+             {parts.map((part, i) => 
+                part.toLowerCase() === transcriptSearch.toLowerCase() ? 
+                <span key={i} className="bg-yellow-200 text-slate-900 font-medium px-0.5 rounded">{part}</span> : 
+                part
+             )}
+          </>
+      );
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-slate-600">Loading report...</div>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+            <p className="text-slate-500 font-medium">Analyzing session data...</p>
+        </div>
       </div>
     );
   }
 
   if (!analysis) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-slate-600">Report not found</div>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+            <h3 className="text-lg font-medium text-slate-900">Report not found</h3>
+            <Link href="/dashboard" className="text-primary-600 hover:text-primary-700 mt-2 inline-block">
+                Back to Dashboard
+            </Link>
+        </div>
       </div>
     );
   }
 
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    showToast("Link copied to clipboard");
+  };
+
+  const handleDownloadPDF = () => {
+    window.print();
+  };
+
+  const overallStatus = getOverallStatus();
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/20 py-8">
-      <div className="mx-auto max-w-6xl px-4">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <Link
-              href="/dashboard"
-              className="mb-2 inline-flex items-center text-sm text-slate-600 hover:text-primary-600"
-            >
-              ← Back to Dashboard
-            </Link>
-            <h1 className="text-3xl font-bold text-slate-900">Analysis Report</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              {formatDate(analysis.createdAt)}
-            </p>
-          </div>
+    <div className="min-h-screen bg-slate-50/50 pb-20 font-sans print:bg-white print:pb-0">
+      
+      {/* 1. Sticky Mini Header */}
+      <div className={`fixed top-0 left-0 right-0 z-50 transform bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-3 transition-transform duration-300 ${showStickyHeader ? "translate-y-0" : "-translate-y-full"} print:hidden`}>
+        <div className="mx-auto flex max-w-[1320px] items-center justify-between">
+           <div className="flex items-center gap-3">
+               <h3 className="font-semibold text-slate-800">{analysis.topic}</h3>
+               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-${overallStatus.color}-100 text-${overallStatus.color}-700`}>
+                  {overallStatus.label}
+               </span>
+           </div>
+           <div className="flex gap-2">
+               <button onClick={handleShare} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Share</button>
+               <button onClick={handleDownloadPDF} className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">Download PDF</button>
+           </div>
         </div>
+      </div>
 
-        {/* Summary Text */}
-        <Card className="mb-6 p-6 bg-gradient-to-br from-primary-50/50 to-accent-50/30 border-primary-200/50">
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">
-            Executive Summary
-          </h2>
-          <p className="text-sm leading-relaxed text-slate-700">
-            {generateSummary()}
-          </p>
-        </Card>
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* 2. Main Header */}
+        <header className="mb-8 print:hidden">
+           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+               <div>
+                   <Link href="/dashboard" className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800">
+                       <ChevronLeft className="h-4 w-4" /> Back to Dashboard
+                   </Link>
+                   <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+                       Session Analysis Report
+                   </h1>
+                   <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500">
+                       <div className="flex items-center gap-2">
+                           <BookOpen className="h-4 w-4" />
+                           <span>{analysis.subject}</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                           <Languages className="h-4 w-4" />
+                           <span>{analysis.language}</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                           <Clock className="h-4 w-4" />
+                           <span>{formatDate(analysis.createdAt)}</span>
+                       </div>
+                   </div>
+               </div>
+               <div className="flex gap-3">
+                   <button onClick={handleShare} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                       <Share2 className="h-4 w-4" /> Share
+                   </button>
+                   <button onClick={handleDownloadPDF} className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2">
+                       <Download className="h-4 w-4" /> Download PDF
+                   </button>
+               </div>
+           </div>
+        </header>
 
-        {/* Key Metrics */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-5 border-2 border-slate-200">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-              Clarity Score
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className={`text-4xl font-bold ${getScoreColor(analysis.clarityScore)}`}>
-                {analysis.clarityScore.toFixed(1)}
-              </p>
-              <span className="text-sm text-slate-500">/ 100</span>
-            </div>
-            <div className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getScoreBgColor(analysis.clarityScore)} ${getScoreColor(analysis.clarityScore)}`}>
-              {analysis.clarityScore >= 80 ? "Excellent" : analysis.clarityScore >= 60 ? "Good" : "Needs Improvement"}
-            </div>
-          </Card>
-          <Card className="p-5 border-2 border-slate-200">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-              Engagement Score
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className={`text-4xl font-bold ${getScoreColor(analysis.engagementScore)}`}>
-                {analysis.engagementScore.toFixed(1)}
-              </p>
-              <span className="text-sm text-slate-500">/ 100</span>
-            </div>
-            <div className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getScoreBgColor(analysis.engagementScore)} ${getScoreColor(analysis.engagementScore)}`}>
-              {analysis.engagementScore >= 80 ? "Excellent" : analysis.engagementScore >= 60 ? "Good" : "Needs Improvement"}
-            </div>
-          </Card>
-          <Card className="p-5 border-2 border-slate-200">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-              Confidence Score
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className={`text-4xl font-bold ${getScoreColor(analysis.confidenceScore)}`}>
-                {analysis.confidenceScore.toFixed(1)}
-              </p>
-              <span className="text-sm text-slate-500">/ 100</span>
-            </div>
-            <div className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getScoreBgColor(analysis.confidenceScore)} ${getScoreColor(analysis.confidenceScore)}`}>
-              {analysis.confidenceScore >= 80 ? "Excellent" : analysis.confidenceScore >= 60 ? "Good" : "Needs Improvement"}
-            </div>
-          </Card>
-          <Card className="p-5 border-2 border-slate-200">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-              Technical Depth
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className={`text-4xl font-bold ${getScoreColor(analysis.technicalDepth)}`}>
-                {analysis.technicalDepth.toFixed(1)}
-              </p>
-              <span className="text-sm text-slate-500">/ 100</span>
-            </div>
-            <div className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${getScoreBgColor(analysis.technicalDepth)} ${getScoreColor(analysis.technicalDepth)}`}>
-              {analysis.technicalDepth >= 80 ? "Excellent" : analysis.technicalDepth >= 60 ? "Good" : "Needs Improvement"}
-            </div>
-          </Card>
-        </div>
-
-        {/* Session Info */}
-        <Card className="mb-6 p-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">
-            Session Information
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Topic
-              </p>
-              <p className="mt-1 text-sm text-slate-900 font-medium">{analysis.topic}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Subject
-              </p>
-              <p className="mt-1 text-sm text-slate-900">{analysis.subject}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Language
-              </p>
-              <p className="mt-1 text-sm text-slate-900">{analysis.language}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Session ID
-              </p>
-              <p className="mt-1 text-xs text-slate-900 font-mono">
-                {analysis.sessionId}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Video Player and Time Segments */}
-        <div className="mb-6 grid gap-6 lg:grid-cols-[2fr,1fr]">
-          {analysis.videoMetadata?.storagePath && (
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-slate-900 mb-4">
-                Session Recording
-              </h2>
-              {videoUrl ? (
-                <video
-                  ref={videoRef}
-                  controls
-                  className="w-full rounded-lg shadow-lg"
-                  src={videoUrl}
-                >
-                  Your browser does not support the video tag.
-                </video>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-lg">
-                  <p className="text-slate-600 mb-4">Click to load video</p>
-                  <button
-                    onClick={loadVideo}
-                    disabled={loadingVideo}
-                    className="btn-primary"
-                  >
-                    {loadingVideo ? "Loading..." : "Load Video"}
-                  </button>
+        {/* 3. Executive Summary (Hero Section) */}
+        <section className="mb-8 break-inside-avoid">
+            <Card className="overflow-hidden border-none bg-gradient-to-r from-blue-50/50 to-indigo-50/30 p-0 shadow-sm ring-1 ring-slate-200">
+                <div className="grid gap-6 p-6 lg:grid-cols-3 lg:gap-12">
+                   <div className="lg:col-span-2 space-y-3">
+                       <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                           <Zap className="h-5 w-5 text-amber-500 fill-amber-500" /> AI Executive Summary
+                       </h2>
+                       <p className="text-base leading-relaxed text-slate-700">
+                           {getSummaryText()}
+                       </p>
+                   </div>
+                   <div className="flex flex-col items-center justify-center rounded-xl bg-white/60 p-6 text-center ring-1 ring-slate-100">
+                       <span className="mb-2 text-sm font-medium uppercase tracking-wider text-slate-500">
+                           Overall Status
+                       </span>
+                       <div className={`mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-${overallStatus.color}-100 text-${overallStatus.color}-600`}>
+                           {overallStatus.icon}
+                       </div>
+                       <span className={`text-lg font-bold text-${overallStatus.color}-700`}>
+                           {overallStatus.label}
+                       </span>
+                   </div>
                 </div>
-              )}
             </Card>
-          )}
+        </section>
 
-          {/* Highlighted Time Segments */}
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4">
-              Key Time Segments
-            </h2>
-            <TimeSegments
-              segments={generateTimeSegments()}
-              videoRef={videoRef}
-            />
-          </Card>
-        </div>
+        {/* 4. Core Score Cards (KPIs) */}
+        <section className="mb-10 break-inside-avoid">
+           <div className="mb-4 flex items-center justify-between">
+               <h2 className="text-lg font-semibold text-slate-900">Key Performance Indicators</h2>
+           </div>
+           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+               <ScoreCard 
+                  title="Clarity" 
+                  score={analysis.clarityScore} 
+                  type="clarity"
+                  description="Measures how clear and understandable your speech was."
+               />
+               <ScoreCard 
+                  title="Engagement" 
+                  score={analysis.engagementScore} 
+                  type="engagement"
+                  description="Measures student interest and attentiveness potential."
+               />
+               <ScoreCard 
+                  title="Confidence" 
+                  score={analysis.confidenceScore} 
+                  type="confidence"
+                  description="Measures your vocal assurance and delivery strength."
+               />
+               <ScoreCard 
+                  title="Technical Depth" 
+                  score={analysis.technicalDepth} 
+                  type="technical"
+                  description="Measures the complexity and accuracy of technical terms."
+               />
+           </div>
+        </section>
 
-        {/* Minute-wise Analytics */}
-        <div className="mb-6">
-          <MinuteWiseAnalytics 
-            audioPerMinute={analysis.audioPerMinute}
-            videoPerMinute={analysis.videoPerMinute}
-            previousMetrics={{
-              avgClarityScore: analysis.clarityScore,
-              avgConfidenceScore: analysis.confidenceScore,
-              avgEngagementScore: analysis.engagementScore,
-            }}
-          />
-        </div>
-
-
-        {/* Additional Metrics */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
-          <Card className="p-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Gesture Index
-            </p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              {analysis.gestureIndex.toFixed(1)}
-            </p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Interaction Index
-            </p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              {analysis.interactionIndex.toFixed(1)}
-            </p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Dominant Emotion
-            </p>
-            <p className="mt-2 text-2xl font-bold text-slate-900 capitalize">
-              {analysis.dominantEmotion}
-            </p>
-          </Card>
-        </div>
-
-        {/* Transcript */}
-        {analysis.transcript && (
-          <Card className="mb-6 p-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4">
-              Transcript
-            </h2>
-            <div className="prose prose-sm max-w-none">
-              <p className="text-slate-700 whitespace-pre-wrap">{analysis.transcript}</p>
+        {/* 5. Video & Time Segments Grid */}
+        <section className="mb-10 grid gap-8 lg:grid-cols-12 print:hidden">
+            
+            {/* Left: Video Player (8 cols) */}
+            <div className="lg:col-span-8 flex flex-col gap-4">
+               <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-900">Session Recording</h2>
+               </div>
+               
+               <Card className="overflow-hidden bg-slate-900 p-0 shadow-md">
+                   {analysis.videoMetadata?.storagePath ? (
+                        videoUrl ? (
+                            <video
+                            ref={videoRef}
+                            controls
+                            className="w-full aspect-video object-contain bg-black"
+                            src={videoUrl}
+                            >
+                            Your browser does not support the video tag.
+                            </video>
+                        ) : (
+                            <div className="flex aspect-video w-full flex-col items-center justify-center bg-slate-900 text-white">
+                                <p className="mb-4 text-slate-400">Video preview available</p>
+                                <button
+                                    onClick={loadVideo}
+                                    disabled={loadingVideo}
+                                    className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-900 transition-transform hover:scale-105"
+                                >
+                                    {loadingVideo ? "Loading..." : "Load Recording"}
+                                </button>
+                            </div>
+                        )
+                   ) : (
+                        <div className="flex aspect-video w-full flex-col items-center justify-center bg-slate-100 text-slate-400">
+                             <AlertCircle className="h-10 w-10 mb-2 opacity-20" />
+                             <p className="text-sm">No recording available</p>
+                        </div>
+                   )}
+               </Card>
             </div>
-          </Card>
-        )}
-
-        {/* Coach Feedback */}
-        {analysis.coachFeedback && (
-          <div className="space-y-6 mb-6">
-            {/* Performance Summary */}
-            {analysis.coachFeedback.performance_summary && (
-              <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-6">
-                <h2 className="text-xl font-semibold text-slate-900 mb-3">
-                  💡 Performance Summary
-                </h2>
-                <p className="text-slate-700 leading-relaxed">
-                  {analysis.coachFeedback.performance_summary}
-                </p>
-              </Card>
-            )}
-
-            {/* Teaching Style */}
-            {analysis.coachFeedback.teaching_style && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold text-slate-900 mb-3">
-                  🎓 Teaching Style
-                </h2>
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-purple-600">
-                    {analysis.coachFeedback.teaching_style.style}
-                  </p>
-                  <p className="text-slate-700">
-                    {analysis.coachFeedback.teaching_style.explanation}
-                  </p>
-                </div>
-              </Card>
-            )}
-
-            {/* Strengths & Weaknesses Grid */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              {analysis.coachFeedback.strengths && analysis.coachFeedback.strengths.length > 0 && (
-                <Card className="border-l-4 border-green-500 p-6">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                    ✨ Strengths
-                  </h3>
-                  <ul className="space-y-3">
-                    {analysis.coachFeedback.strengths.map((strength, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <span className="text-green-600 text-lg mt-0.5">✓</span>
-                        <span className="text-slate-700">{strength}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              )}
-              {analysis.coachFeedback.weaknesses && analysis.coachFeedback.weaknesses.length > 0 && (
-                <Card className="border-l-4 border-orange-500 p-6">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                    🎯 Areas to Improve
-                  </h3>
-                  <ul className="space-y-3">
-                    {analysis.coachFeedback.weaknesses.map((weakness, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <span className="text-orange-600 text-lg mt-0.5">→</span>
-                        <span className="text-slate-700">{weakness}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              )}
+            
+            {/* Right: Segments (4 cols) */}
+            <div className="lg:col-span-4 flex flex-col gap-4">
+               <h2 className="text-lg font-semibold text-slate-900">Key Moments</h2>
+               <Card className="h-full max-h-[500px] overflow-y-auto p-4 border-slate-200 shadow-sm">
+                   <TimeSegments
+                       segments={generateTimeSegments()}
+                       videoRef={videoRef}
+                   />
+               </Card>
             </div>
+        </section>
+        
+        {/* 6. Minute-wise Analytics */}
+        <section className="mb-10 break-inside-avoid">
+           <MinuteWiseAnalytics 
+             audioPerMinute={analysis.audioPerMinute}
+             videoPerMinute={analysis.videoPerMinute}
+             previousMetrics={{
+               avgClarityScore: analysis.clarityScore,
+               avgConfidenceScore: analysis.confidenceScore,
+               avgEngagementScore: analysis.engagementScore,
+             }}
+           />
+        </section>
 
-            {/* Factual Accuracy Audit */}
-            {analysis.coachFeedback.factual_accuracy_audit && analysis.coachFeedback.factual_accuracy_audit.length > 0 && (
-              <Card className="border-l-4 border-blue-500 p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                  🔍 Factual Accuracy Audit
-                </h3>
-                <ul className="space-y-2">
-                  {analysis.coachFeedback.factual_accuracy_audit.map((item, index) => (
-                    <li key={index} className="flex items-start gap-2 text-slate-700">
-                      <span className="text-blue-600 mt-0.5">→</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-
-            {/* Content Metadata */}
-            {analysis.coachFeedback.content_metadata && (
-              <div className="grid gap-6 lg:grid-cols-2">
-                {analysis.coachFeedback.content_metadata.titles && analysis.coachFeedback.content_metadata.titles.length > 0 && (
-                  <Card className="bg-purple-50 p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                      📺 Video Titles
-                    </h3>
-                    <ul className="space-y-2">
-                      {analysis.coachFeedback.content_metadata.titles.map((title, index) => (
-                        <li key={index} className="rounded-lg bg-white p-3 text-sm text-slate-700">
-                          {index + 1}. {title}
-                        </li>
-                      ))}
-                    </ul>
-                  </Card>
-                )}
-                {analysis.coachFeedback.content_metadata.hashtags && analysis.coachFeedback.content_metadata.hashtags.length > 0 && (
-                  <Card className="bg-pink-50 p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                      #️⃣ Hashtags
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {analysis.coachFeedback.content_metadata.hashtags.map((tag, index) => (
-                        <span key={index} className="rounded-full bg-white px-3 py-1 text-sm font-medium text-pink-600">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </Card>
-                )}
+        {/* 7. Insights Grid (Teaching Style, Emotions, etc.) */}
+        <section className="mb-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4 break-inside-avoid">
+           <Card className="relative overflow-hidden p-5 border-slate-200">
+              <div className="flex items-center gap-3 mb-3">
+                 <div className="p-2 bg-violet-100 text-violet-600 rounded-lg">
+                    <Activity className="h-5 w-5" />
+                 </div>
+                 <h3 className="font-semibold text-slate-700">Interaction Index</h3>
               </div>
-            )}
-          </div>
+              <div className="flex items-end gap-2">
+                 <span className="text-3xl font-bold text-slate-900">{analysis.interactionIndex.toFixed(1)}</span>
+              </div>
+              
+              <div className="mt-3 h-2 w-full rounded-full bg-slate-100">
+                 <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${Math.min(analysis.interactionIndex, 100)}%` }}></div>
+              </div>
+           </Card>
+
+           <Card className="relative overflow-hidden p-5 border-slate-200">
+              <div className="flex items-center gap-3 mb-3">
+                 <div className="p-2 bg-pink-100 text-pink-600 rounded-lg">
+                    <Zap className="h-5 w-5" />
+                 </div>
+                 <h3 className="font-semibold text-slate-700">Gesture Index</h3>
+              </div>
+              <div className="flex items-end gap-2">
+                 <span className="text-3xl font-bold text-slate-900">{analysis.gestureIndex.toFixed(1)}</span>
+              </div>
+              <div className="mt-3 h-2 w-full rounded-full bg-slate-100">
+                 <div className="h-full rounded-full bg-pink-500 transition-all" style={{ width: `${Math.min(analysis.gestureIndex, 100)}%` }}></div>
+              </div>
+           </Card>
+
+           <Card className="relative overflow-hidden p-5 border-slate-200">
+              <div className="flex items-center gap-3 mb-3">
+                 <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                    <Smile className="h-5 w-5" />
+                 </div>
+                 <h3 className="font-semibold text-slate-700">Dominant Emotion</h3>
+              </div>
+              <p className="text-2xl font-bold capitalize text-slate-900">{analysis.dominantEmotion}</p>
+              <p className="mt-1 text-xs text-slate-500">Based on facial expression analysis</p>
+           </Card>
+           
+           <Card className="relative overflow-hidden p-5 border-slate-200">
+              <div className="flex items-center gap-3 mb-3">
+                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                    <BrainCircuit className="h-5 w-5" />
+                 </div>
+                 <h3 className="font-semibold text-slate-700">Teaching Style</h3>
+              </div>
+              <p className="text-lg font-bold text-slate-900 leading-tight">
+                 {analysis.coachFeedback?.teaching_style?.style || "Balanced"}
+              </p>
+              <p className="mt-2 text-xs text-slate-500 line-clamp-2">
+                 {analysis.coachFeedback?.teaching_style?.explanation || "A balanced approach to teaching."}
+              </p>
+           </Card>
+        </section>
+
+        {/* 8. Transcript Section */}
+        {analysis.transcript && (
+           <section className="mb-10">
+               <Card className="p-0 border-slate-200 overflow-hidden bg-white shadow-sm">
+                   <div className="border-b border-slate-100 bg-slate-50/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                       <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                           <Mic className="h-5 w-5 text-slate-400" />
+                           Transcript Analysis
+                       </h2>
+                       <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input 
+                                type="text"
+                                placeholder="Search transcript..."
+                                value={transcriptSearch}
+                                onChange={handleTranscriptSearch}
+                                className="w-full sm:w-64 rounded-lg border border-slate-200 py-1.5 pl-9 pr-4 text-sm focus:border-primary-500 focus:outline-none"
+                            />
+                       </div>
+                   </div>
+                   <div className="relative p-6">
+                        <div className={`prose prose-sm max-w-none text-slate-600 leading-relaxed ${!isTranscriptExpanded ? "max-h-[200px] overflow-hidden mask-linear-fade" : ""}`}>
+                           <p className="whitespace-pre-wrap font-mono text-sm">
+                               {getHighlightedTranscript(analysis.transcript)}
+                           </p>
+                        </div>
+                        <div className={`mt-4 flex justify-center ${!isTranscriptExpanded ? "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white pt-20 pb-4" : ""}`}>
+                            <button 
+                                onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
+                                className="group flex items-center gap-2 rounded-full border border-slate-200 bg-white shadow-sm px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-600"
+                            >
+                                {isTranscriptExpanded ? (
+                                    <>Collapse Transcript <ChevronUp className="h-4 w-4" /></>
+                                ) : (
+                                    <>Read Full Transcript <ChevronDown className="h-4 w-4" /></>
+                                )}
+                            </button>
+                        </div>
+                   </div>
+               </Card>
+           </section>
         )}
+
+        {/* 9. Actionable Insights ("Coach Feedback") */}
+        {(analysis.coachFeedback?.strengths || analysis.coachFeedback?.weaknesses) && (
+            <section className="grid gap-8 lg:grid-cols-2 mb-10">
+                {/* Strengths */}
+                {analysis.coachFeedback.strengths && analysis.coachFeedback.strengths.length > 0 && (
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600">
+                                 <CheckCircle2 className="h-5 w-5" />
+                             </div>
+                             <h2 className="text-xl font-bold text-slate-900">Key Strengths</h2>
+                        </div>
+                        <div className="space-y-3">
+                            {analysis.coachFeedback.strengths.map((strength, i) => (
+                                <Card key={i} className="flex items-start gap-4 border-l-4 border-l-green-500 bg-white p-4 shadow-sm transition-all hover:translate-x-1">
+                                    <p className="text-sm font-medium text-slate-800">{strength}</p>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {/* Improvements */}
+                {analysis.coachFeedback.weaknesses && analysis.coachFeedback.weaknesses.length > 0 && (
+                     <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                                 <Lightbulb className="h-5 w-5" />
+                             </div>
+                             <h2 className="text-xl font-bold text-slate-900">Areas for Improvement</h2>
+                        </div>
+                        <div className="space-y-3">
+                            {analysis.coachFeedback.weaknesses.map((weakness, i) => (
+                                <Card key={i} className="group relative flex items-start gap-4 border-l-4 border-l-orange-500 bg-white p-4 shadow-sm transition-all hover:translate-x-1">
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-slate-800">{weakness}</p>
+                                    </div>
+                                    <button className="invisible group-hover:visible text-xs font-semibold text-primary-600 hover:underline">
+                                        View Tips
+                                    </button>
+                                </Card>
+                            ))}
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                            <button className="flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-200 hover:bg-slate-800 hover:shadow-xl transition-all">
+                                <Zap className="h-4 w-4 text-yellow-400" /> Get AI Improvement Plan
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </section>
+        )}
+
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/Card";
 import { useToast } from "@/components/ToastContext";
+import { Loader2, ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function SignupPage() {
   const { showToast } = useToast();
@@ -14,6 +15,8 @@ export default function SignupPage() {
   const [role, setRole] = useState("Mentor");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  
   const [errors, setErrors] = useState<{
     fullName?: string;
     email?: string;
@@ -40,12 +43,15 @@ export default function SignupPage() {
     if (!email) nextErrors.email = "Email is required.";
     if (!role) nextErrors.role = "Role is required.";
     if (!password) nextErrors.password = "Password is required.";
+    if (password.length < 8) nextErrors.password = "Password must be at least 8 characters.";
     if (!confirmPassword) nextErrors.confirmPassword = "Confirm your password.";
     if (password && confirmPassword && password !== confirmPassword) {
       nextErrors.confirmPassword = "Passwords do not match.";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+
+    setIsLoading(true);
 
     try {
       // Call the signup API
@@ -76,136 +82,166 @@ export default function SignupPage() {
       localStorage.setItem("shikshanetra_user", JSON.stringify(data.user));
       localStorage.setItem("shikshanetra_logged_in", "true");
 
-      showToast("Account created successfully! Redirecting...");
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 500);
+      showToast("Account created successfully!");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Signup error:", error);
       setApiError(error instanceof Error ? error.message : "An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-md items-center px-4 py-10">
-      <div className="w-full">
-        <div className="flex items-center justify-center">
-          <Card className="relative w-full overflow-hidden border-slate-200 bg-gradient-to-br from-white to-primary-50/20 p-8 shadow-xl">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(20,184,166,0.05),transparent_70%)]" />
-            <div className="relative">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-slate-900">
+    <div className="min-h-screen grid lg:grid-cols-1 bg-slate-50">
+      <div className="flex flex-col justify-center items-center p-6 lg:p-10">
+        
+        <div className="w-full max-w-[440px] space-y-8">
+            <div className="text-center space-y-2">
+               <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm border border-slate-200 mb-4">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>AI Mentor Evaluation Platform</span>
+               </div>
+               <h1 className="text-3xl font-bold tracking-tight text-slate-900">
                   Create your account
-                </h1>
-                <p className="mt-2 text-sm text-slate-600">
+               </h1>
+               <p className="text-base text-slate-500">
                   Get started with ShikshaNetra today
-                </p>
-              </div>
+               </p>
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {apiError && (
-                <div className="rounded-lg border-2 border-red-300 bg-red-50 p-3">
-                  <p className="text-sm font-semibold text-red-800">{apiError}</p>
-                </div>
-              )}
-              <div className="space-y-1.5 text-sm">
-                <label className="block text-xs font-medium text-slate-700">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                />
-                {errors.fullName && (
-                  <p className="text-[11px] font-medium text-red-700">{errors.fullName}</p>
-                )}
-              </div>
+            <Card className="bg-white border border-slate-200 shadow-xl p-8 rounded-2xl">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  {apiError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex gap-2 items-center text-sm text-red-700 animate-in fade-in slide-in-from-top-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0"></div>
+                      <p className="font-medium">{apiError}</p>
+                    </div>
+                  )}
 
-              <div className="space-y-1.5 text-sm">
-                <label className="block text-xs font-medium text-slate-700">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                />
-                {errors.email && (
-                  <p className="text-[11px] font-medium text-red-700">{errors.email}</p>
-                )}
-              </div>
+                  <div className="space-y-4">
+                      {/* Name */}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-900">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="e.g. Aditi Sharma"
+                          className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none transition-all focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-400"
+                        />
+                        {errors.fullName && (
+                          <p className="text-xs font-medium text-red-600">{errors.fullName}</p>
+                        )}
+                      </div>
 
-              <div className="space-y-1.5 text-sm">
-                <label className="block text-xs font-medium text-slate-700">
-                  Role
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                >
-                  <option>Mentor</option>
-                  <option>Coordinator</option>
-                  <option>Institution Admin</option>
-                  <option>Other</option>
-                </select>
-                {errors.role && (
-                  <p className="text-[11px] font-medium text-red-700">{errors.role}</p>
-                )}
-              </div>
+                      {/* Email */}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-900">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="name@institution.edu"
+                          className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none transition-all focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-400"
+                        />
+                        {errors.email && (
+                          <p className="text-xs font-medium text-red-600">{errors.email}</p>
+                        )}
+                      </div>
 
-              <div className="space-y-1.5 text-sm">
-                <label className="block text-xs font-medium text-slate-700">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                />
-                {errors.password && (
-                  <p className="text-[11px] font-medium text-red-700">{errors.password}</p>
-                )}
-              </div>
+                      {/* Role */}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-900">
+                          Role
+                        </label>
+                        <div className="relative">
+                            <select
+                              value={role}
+                              onChange={(e) => setRole(e.target.value)}
+                              className="w-full h-10 appearance-none rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-all focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-400"
+                            >
+                              <option>Mentor</option>
+                              <option>Coordinator</option>
+                              <option>Institution Admin</option>
+                              <option>Other</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                               <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                            </div>
+                        </div>
+                        {errors.role && (
+                          <p className="text-xs font-medium text-red-600">{errors.role}</p>
+                        )}
+                      </div>
 
-              <div className="space-y-1.5 text-sm">
-                <label className="block text-xs font-medium text-slate-700">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                />
-                {errors.confirmPassword && (
-                  <p className="text-[11px] font-medium text-red-700">
-                    {errors.confirmPassword}
-                  </p>
-                )}
-              </div>
+                      {/* Password */}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-900">
+                          Password
+                        </label>
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-all focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-400"
+                        />
+                         <p className="text-xs text-slate-500">Must be at least 8 characters</p>
+                        {errors.password && (
+                          <p className="text-xs font-medium text-red-600">{errors.password}</p>
+                        )}
+                      </div>
 
-              <button type="submit" className="btn-primary w-full text-sm">
-                Create Account
-              </button>
-            </form>
+                      {/* Confirm Password */}
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-900">
+                          Confirm Password
+                        </label>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-all focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-400"
+                        />
+                        {errors.confirmPassword && (
+                          <p className="text-xs font-medium text-red-600">
+                            {errors.confirmPassword}
+                          </p>
+                        )}
+                      </div>
+                  </div>
 
-            <p className="mt-6 text-center text-xs text-slate-600">
+                  <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="group w-full flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {isLoading ? (
+                           <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                           <>
+                             Create Account <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                           </>
+                        )}
+                      </button>
+                  </div>
+                </form>
+            </Card>
+
+            <p className="text-center text-sm text-slate-600">
               Already have an account?{" "}
-              <Link href="/login" className="font-semibold text-primary-700 hover:underline">
+              <Link href="/login" className="font-semibold text-slate-900 hover:underline hover:text-primary-600 transition-colors">
                 Log in
               </Link>
             </p>
-            </div>
-          </Card>
         </div>
+        
       </div>
     </div>
   );
 }
-
-
