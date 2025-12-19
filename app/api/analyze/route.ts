@@ -4,8 +4,10 @@ import { authMiddleware } from "@/lib/middleware/auth";
 import { createJob } from "@/lib/models/Job";
 import { processVideoAnalysis } from "@/lib/services/videoAnalysisProcessor";
 
-
+// Configure route segment for large file uploads
 export const runtime = "nodejs";
+export const maxDuration = 300; // 5 minutes max for upload
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {

@@ -36,7 +36,9 @@ export default function UploadPage() {
   const [language, setLanguage] = useState("English – Indian");
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileObject, setFileObject] = useState<File | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
+    null
+  );
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -66,7 +68,9 @@ export default function UploadPage() {
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
   const prevJobsRef = useRef<Map<string, JobStatus>>(new Map());
-  const [expandedJobIds, setExpandedJobIds] = useState<Record<string, boolean>>({});
+  const [expandedJobIds, setExpandedJobIds] = useState<Record<string, boolean>>(
+    {}
+  );
   const [messageTick, setMessageTick] = useState(0);
 
   useEffect(() => {
@@ -94,7 +98,11 @@ export default function UploadPage() {
       const prev = prevJobsRef.current;
       for (const job of nextJobs) {
         const prevStatus = prev.get(job.id);
-        if (prevStatus && prevStatus !== "completed" && job.status === "completed") {
+        if (
+          prevStatus &&
+          prevStatus !== "completed" &&
+          job.status === "completed"
+        ) {
           showToast("Job completed! You can open the report.");
         }
         prev.set(job.id, job.status);
@@ -159,10 +167,7 @@ export default function UploadPage() {
     const status = job.status;
 
     const messagesByStatus: Record<JobStatus, string[]> = {
-      created: [
-        "Job created. Preparing uploads…",
-        "Warming up the pipeline…",
-      ],
+      created: ["Job created. Preparing uploads…", "Warming up the pipeline…"],
       uploading: [
         "Upload started. Sending your video securely…",
         "Uploading video to storage…",
@@ -191,7 +196,7 @@ export default function UploadPage() {
       failed: ["Failed."],
     };
 
-    const messages = messagesByStatus[status] || ["Working…"]; 
+    const messages = messagesByStatus[status] || ["Working…"];
 
     // Spread message selection across jobs so they don't all change to the same line at once
     const salt = job.id
@@ -203,29 +208,33 @@ export default function UploadPage() {
 
   const handleRunAnalysis = async () => {
     if (loading) return;
-    
+
     if (!fileObject) {
       showToast("Please select a video file first.");
       return;
     }
 
     setLoading(true);
-    
+
     try {
       const formData = new FormData();
       formData.append("file", fileObject);
       formData.append("subject", subject);
       formData.append("language", language);
 
-      const response = await postWithAuth("/api/analyze", formData, "multipart/form-data");
+      const response = await postWithAuth(
+        "/api/analyze",
+        formData,
+        "multipart/form-data"
+      );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Analysis failed");
+        const text = await response.text(); // ✅ SAFE
+        throw new Error(text || "Analysis failed");
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || "Analysis failed");
       }
@@ -250,7 +259,11 @@ export default function UploadPage() {
       refreshJobs(true);
     } catch (error) {
       console.error("Error during analysis:", error);
-      showToast(error instanceof Error ? error.message : "Error during analysis. Please try again.");
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Error during analysis. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -278,7 +291,7 @@ export default function UploadPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
         {/* Upload Panel */}
-        <VideoUploadZone 
+        <VideoUploadZone
           fileName={fileName}
           subject={subject}
           language={language}
@@ -303,7 +316,7 @@ export default function UploadPage() {
 
         {/* Info Panel */}
         <div className="space-y-4">
-          <EnhancedJobTracker 
+          <EnhancedJobTracker
             jobs={jobs}
             expandedJobIds={expandedJobIds}
             onToggleExpand={toggleJobExpanded}
@@ -318,11 +331,15 @@ export default function UploadPage() {
             <ul className="space-y-2 text-xs text-slate-700">
               <li className="flex items-start gap-2">
                 <span className="text-emerald-600 mt-0.5">✓</span>
-                <span>Comprehensive analysis of clarity, engagement, and confidence</span>
+                <span>
+                  Comprehensive analysis of clarity, engagement, and confidence
+                </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-emerald-600 mt-0.5">✓</span>
-                <span>AI-generated feedback with strengths and improvement areas</span>
+                <span>
+                  AI-generated feedback with strengths and improvement areas
+                </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-emerald-600 mt-0.5">✓</span>
@@ -339,4 +356,3 @@ export default function UploadPage() {
     </div>
   );
 }
-
