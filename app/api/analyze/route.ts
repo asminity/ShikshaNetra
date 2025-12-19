@@ -4,28 +4,8 @@ import { authMiddleware } from "@/lib/middleware/auth";
 import { createJob } from "@/lib/models/Job";
 import { processVideoAnalysis } from "@/lib/services/videoAnalysisProcessor";
 
-function toUserFriendlyJobError(raw: unknown): string {
-  const message = typeof raw === "string" ? raw : (raw as any)?.message;
-  const msg = (message || "").toString();
-  const lower = msg.toLowerCase();
 
-  if (!msg) return "Analysis failed. Please try again.";
-  if (lower.includes("timeout") || lower.includes("timed out")) {
-    return "Analysis timed out. Please try again with a shorter video or retry later.";
-  }
-  if (lower.includes("rate") && (lower.includes("limit") || lower.includes("429"))) {
-    return "The analysis service is busy (rate-limited). Please wait a minute and try again.";
-  }
-  if (lower.includes("upload")) {
-    return "Video upload failed. Please check your connection and try again.";
-  }
-  if (lower.includes("network") || lower.includes("fetch") || lower.includes("econn") || lower.includes("enotfound")) {
-    return "Network error while contacting the analysis service. Please try again.";
-  }
-
-  return msg.length > 180 ? `${msg.slice(0, 180)}…` : msg;
-}
-
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {

@@ -7,6 +7,8 @@ import { uploadVideoToStorage } from "@/lib/utils/videoUpload";
 import type { JobStatus } from "@/lib/types/job";
 import { Client } from "@gradio/client";
 
+export const runtime = "nodejs";
+
 function toUserFriendlyJobError(raw: unknown): string {
   const message = typeof raw === "string" ? raw : (raw as any)?.message;
   const msg = (message || "").toString();
