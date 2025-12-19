@@ -1,9 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIncompleteJobs, getJobById, updateJob } from "@/lib/models/Job";
+import type { JobResponse } from "@/lib/types/job";
 import { getSignedVideoUrl } from "@/lib/services/storageService";
 import { processVideoAnalysis } from "@/app/api/analyze/route";
 
 const INTERNAL_SERVICE_KEY = process.env.INTERNAL_SERVICE_KEY;
+
+/**
+ * Decide whether a job should be restarted.
+ * - Skip `completed` and `failed`
+ * - Skip jobs updated within last 15 minutes (likely still progressing)
+ */
+function shouldRestart(job: JobResponse): boolean {
+  if (job.status === "completed" || job.status === "failed") return false;
+
+  const now = Date.now();
+  const last = new Date(job.updatedAt).getTime();
+
+  // Only restart if last update was >= 15 minutes ago
+  if (now - last < 15 * 60 * 1000) return false;
+
+  return true;
+}
 
 /**
  * Import the processVideoAnalysis function
@@ -100,15 +118,25 @@ export async function POST(req: NextRequest) {
 
     console.log(`Found ${incompleteJobs.length} incomplete jobs`);
 
-    // Restart all incomplete jobs
-    // Since we don't have the video files, we'll mark them as failed
-    const restartPromises = incompleteJobs.map((job) => restartJobProcessing(job.id));
+    // Apply additional filter to avoid restarting very recent jobs
+    const eligibleJobs = incompleteJobs.filter(shouldRestart);
+    if (eligibleJobs.length === 0) {
+      console.log("No eligible jobs after filtering by last update time");
+      return NextResponse.json({
+        success: true,
+        message: "No jobs eligible for restart (updated <15m)",
+        count: 0,
+      });
+    }
+
+    // Restart all eligible incomplete jobs
+    const restartPromises = eligibleJobs.map((job) => restartJobProcessing(job.id));
     await Promise.allSettled(restartPromises);
 
     return NextResponse.json({
       success: true,
-      message: `Processed ${incompleteJobs.length} incomplete jobs`,
-      count: incompleteJobs.length,
+      message: `Processed ${eligibleJobs.length} eligible incomplete jobs`,
+      count: eligibleJobs.length,
     });
   } catch (error: any) {
     console.error("Error restarting jobs:", error);
