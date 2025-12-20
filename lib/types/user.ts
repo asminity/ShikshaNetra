@@ -6,8 +6,8 @@ export interface User {
   email: string;
   password: string;
   name: string;
-  role: "mentor" | "coordinator";
-  institutionId?: string; // optional institution reference
+  role: "Mentor" | "Coordinator" | "Institution Admin";
+  institutionId?: string; // For mentors/coordinators: their institution. For Institution Admins: their own ID
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -20,14 +20,14 @@ export interface CreateUserInput {
   email: string;
   password: string;
   name: string;
-  role: "mentor" | "coordinator";
+  role: "Mentor" | "Coordinator" | "Institution Admin";
   institutionId?: string;
 }
 
 export interface UpdateUserInput {
   email?: string;
   name?: string;
-  role?: "mentor" | "coordinator";
+  role?: "Mentor" | "Coordinator" | "Institution Admin";
   password?: string;
   institutionId?: string | null;
 }

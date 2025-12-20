@@ -11,6 +11,7 @@ export function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { showToast } = useToast();
@@ -20,7 +21,21 @@ export function Navbar() {
     const checkLogin = () => {
       const token = localStorage.getItem("shikshanetra_token");
       const loggedIn = localStorage.getItem("shikshanetra_logged_in") === "true";
+      const userData = localStorage.getItem("shikshanetra_user");
+      
       setIsLoggedIn(!!token || loggedIn);
+      
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          setUserRole(user.role);
+        } catch (e) {
+          setUserRole(null);
+        }
+      } else {
+        setUserRole(null);
+      }
+      
       setIsLoading(false);
     };
     checkLogin();
@@ -51,12 +66,28 @@ export function Navbar() {
     router.push("/");
   };
 
-  const authenticatedNavLinks = [
-    { href: "/upload", label: "Upload" },
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/history", label: "History" },
-    { href: "/insights", label: "Insights" },
-  ];
+  // Define navigation links based on user role
+  const getNavLinks = () => {
+    if (userRole === "Institution Admin") {
+      return [
+        { href: "/institution/dashboard", label: "Dashboard" },
+        { href: "/institution/upload", label: "Upload" },
+        { href: "/institution/history", label: "History" },
+        { href: "/institution/summaries", label: "Summaries" },
+      ];
+    }
+    
+    // Default links for mentors/coordinators
+    return [
+      { href: "/upload", label: "Upload" },
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/history", label: "History" },
+      { href: "/insights", label: "Insights" },
+    ];
+  };
+
+  const navLinks = getNavLinks();
+  const dashboardLink = userRole === "Institution Admin" ? "/institution/dashboard" : "/dashboard";
 
   // Don't render navbar while loading to avoid flash
   if (isLoading) {
@@ -75,7 +106,7 @@ export function Navbar() {
           {/* Logo */}
           <div className="flex items-center gap-2">
             <Link 
-              href="/dashboard" 
+              href={dashboardLink} 
               className="flex items-center gap-2"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-600 text-sm font-bold text-white shadow-sm">
@@ -89,7 +120,7 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-6 md:flex">
-            {authenticatedNavLinks.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -160,7 +191,7 @@ export function Navbar() {
           <div className="border-t border-slate-200 bg-white px-4 pb-4 pt-2 md:hidden">
             {isLoggedIn ? (
               <div className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-                {authenticatedNavLinks.map((link) => (
+                {navLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}

@@ -12,51 +12,73 @@ const COLLECTION_NAME = "institutions";
 export async function createInstitution(
   data: CreateInstitutionInput
 ): Promise<InstitutionResponse> {
-  const db = await getDatabase();
-  const collection = db.collection<Institution>(COLLECTION_NAME);
+  try {
+    const db = await getDatabase();
+    const collection = db.collection<Institution>(COLLECTION_NAME);
 
-  const now = new Date();
-  const doc: Institution = {
-    name: data.name,
-    userIds: data.userIds ?? [],
-    createdAt: now,
-    updatedAt: now,
-  };
+    const now = new Date();
+    const doc: Institution = {
+      name: data.name,
+      userIds: data.userIds ?? [],
+      createdAt: now,
+      updatedAt: now,
+    };
 
-  const result = await collection.insertOne(doc);
+    console.log("Creating institution document", { name: doc.name, userIds: doc.userIds });
+    const result = await collection.insertOne(doc);
+    console.log("Institution inserted successfully", { 
+      insertedId: result.insertedId.toString(),
+      acknowledged: result.acknowledged
+    });
 
-  return {
-    id: result.insertedId.toString(),
-    name: doc.name,
-    userIds: doc.userIds,
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-  };
+    return {
+      id: result.insertedId.toString(),
+      name: doc.name,
+      userIds: doc.userIds,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  } catch (error) {
+    console.error("Error creating institution", error);
+    throw error;
+  }
 }
 
 export async function getInstitutionById(
   id: string
 ): Promise<InstitutionResponse | null> {
-  const db = await getDatabase();
-  const collection = db.collection(COLLECTION_NAME);
-
-  let objectId: ObjectId;
   try {
-    objectId = new ObjectId(id);
-  } catch {
+    const db = await getDatabase();
+    const collection = db.collection(COLLECTION_NAME);
+
+    let objectId: ObjectId;
+    try {
+      objectId = new ObjectId(id);
+    } catch (e) {
+      console.error("Invalid ObjectId format", { id, error: e });
+      return null;
+    }
+
+    console.log("Looking up institution by id", { id, objectId: objectId.toString() });
+    const inst = await collection.findOne({ _id: objectId });
+    
+    if (!inst) {
+      console.warn("Institution not found", { id, objectId: objectId.toString() });
+      return null;
+    }
+
+    console.log("Institution found", { id, name: inst.name });
+    return {
+      id: inst._id.toString(),
+      name: inst.name,
+      userIds: inst.userIds ?? [],
+      createdAt: inst.createdAt,
+      updatedAt: inst.updatedAt,
+    } as InstitutionResponse;
+  } catch (error) {
+    console.error("Error getting institution by id", { id, error });
     return null;
   }
-
-  const inst = await collection.findOne({ _id: objectId });
-  if (!inst) return null;
-
-  return {
-    id: inst._id.toString(),
-    name: inst.name,
-    userIds: inst.userIds ?? [],
-    createdAt: inst.createdAt,
-    updatedAt: inst.updatedAt,
-  } as InstitutionResponse;
 }
 
 export async function updateInstitution(

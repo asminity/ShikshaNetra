@@ -40,11 +40,11 @@ export function computeJobProgress(job: JobProgressInput, nowMs: number = Date.n
   // Stage boundaries (must match backend stage percentages)
   const stageMin: Record<JobStatus, number> = {
     created: 0,
-    uploading: 5,
-    uploaded: 20,
-    analyzing: 30,
-    analysis_done: 70,
-    generating_feedback: 80,
+    uploading: 5, // legacy
+    uploaded: 10, // legacy
+    analyzing: 15,
+    analysis_done: 75,
+    generating_feedback: 90,
     completed: 100,
     failed: 0,
   };
@@ -52,11 +52,11 @@ export function computeJobProgress(job: JobProgressInput, nowMs: number = Date.n
   // Cap at 95% until completed
   const stageMax: Record<JobStatus, number> = {
     created: 5,
-    uploading: 20,
-    uploaded: 30,
-    analyzing: 70,
-    analysis_done: 80,
-    generating_feedback: 95,
+    uploading: 20, // legacy
+    uploaded: 25, // legacy
+    analyzing: 80,
+    analysis_done: 92,
+    generating_feedback: 98,
     completed: 100,
     failed: 0,
   };
@@ -64,11 +64,11 @@ export function computeJobProgress(job: JobProgressInput, nowMs: number = Date.n
   // Expected durations per stage (ms). Tune as needed.
   const expectedMs: Partial<Record<JobStatus, number>> = {
     created: 5_000,
-    uploading: 90_000,
+    uploading: 45_000,
     uploaded: 10_000,
     analyzing: 240_000,
-    analysis_done: 15_000,
-    generating_feedback: 120_000,
+    analysis_done: 20_000,
+    generating_feedback: 90_000,
   };
 
   const min = stageMin[status] ?? 0;

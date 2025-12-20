@@ -11,6 +11,7 @@ export interface TokenPayload {
   id: string;
   email: string;
   role?: string;
+  institutionId?: string;
 }
 
 export const generateAccessToken = (payload: TokenPayload): string => {

@@ -72,7 +72,8 @@ interface Analysis {
   };
   videoMetadata: {
     fileName: string;
-    storagePath?: string;
+    videoUrl?: string;
+    storagePath?: string; // legacy
   };
 }
 
@@ -124,30 +125,28 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     } catch (error) {
       console.error("Error fetching analysis:", error);
       showToast("Failed to load analysis report");
-      router.push("/dashboard");
+      
+      // Determine redirect based on user role
+      const userData = localStorage.getItem("shikshanetra_user");
+      const user = userData ? JSON.parse(userData) : null;
+      const redirectPath = user?.role === "Institution Admin" ? "/institution/summaries" : "/dashboard";
+      
+      router.push(redirectPath);
     } finally {
       setLoading(false);
     }
   };
 
   const loadVideo = async () => {
-    if (!analysis?.videoMetadata?.storagePath) {
+    const directUrl = analysis?.videoMetadata?.videoUrl;
+    if (!directUrl) {
       showToast("Video not available");
       return;
     }
 
     setLoadingVideo(true);
     try {
-      const response = await getWithAuth(
-        `/api/video/signed-url?path=${encodeURIComponent(analysis.videoMetadata.storagePath)}`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to generate video URL");
-      }
-
-      const data = await response.json();
-      setVideoUrl(data.signedUrl);
+      setVideoUrl(directUrl);
     } catch (error) {
       console.error("Error loading video:", error);
       showToast("Failed to load video");
@@ -417,8 +416,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                   <h2 className="text-lg font-semibold text-slate-900">Session Recording</h2>
                </div>
                
-               <Card className="overflow-hidden bg-slate-900 p-0 shadow-md">
-                   {analysis.videoMetadata?.storagePath ? (
+                 <Card className="overflow-hidden bg-slate-900 p-0 shadow-md">
+                   {analysis.videoMetadata?.videoUrl ? (
                         videoUrl ? (
                             <video
                             ref={videoRef}

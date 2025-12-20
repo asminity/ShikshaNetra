@@ -26,6 +26,8 @@ export interface Job {
     mimeType?: string;
     storagePath?: string;
     videoUrl?: string;
+    compressedVideoUrl?: string;
+    cloudinaryPublicId?: string;
   };
   subject?: string;
   language?: string;
@@ -41,6 +43,8 @@ export interface CreateJobInput {
     mimeType?: string;
     storagePath?: string;
     videoUrl?: string;
+    compressedVideoUrl?: string;
+    cloudinaryPublicId?: string;
   };
   subject?: string;
   language?: string;
@@ -57,6 +61,8 @@ export interface UpdateJobInput {
       mimeType?: string;
       storagePath?: string;
       videoUrl?: string;
+      compressedVideoUrl?: string;
+      cloudinaryPublicId?: string;
     };
 }
 
@@ -74,6 +80,8 @@ export interface JobResponse {
     mimeType?: string;
     storagePath?: string;
     videoUrl?: string;
+    compressedVideoUrl?: string;
+    cloudinaryPublicId?: string;
   };
   subject?: string;
   language?: string;

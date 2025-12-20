@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       id: payload.id,
       email: payload.email,
       role: payload.role,
+      institutionId: payload.institutionId,
     });
 
     return NextResponse.json(

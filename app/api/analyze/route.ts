@@ -20,29 +20,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Parse form-data
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
-    const subject = formData.get("subject") as string;
-    const language = formData.get("language") as string;
+    // 2. Parse JSON payload (browser already uploaded to Cloudinary)
+    const body = await req.json();
+    const {
+      originalVideoUrl,
+      compressedVideoUrl,
+      publicId,
+      fileName,
+      fileSize,
+      mimeType,
+      subject,
+      language,
+    } = body || {};
 
-    if (!file || !subject || !language) {
+    if (!originalVideoUrl || !subject || !language || !fileName) {
       return NextResponse.json(
-        { error: "File, subject, and language are required" },
+        { error: "originalVideoUrl, fileName, subject, and language are required" },
         { status: 400 }
       );
     }
 
-    // HF_SPACE is configured inside the processor
+    // Store original URL in metadata for reports, use compressed for analysis
+    const videoMetadata = {
+      fileName,
+      fileSize,
+      mimeType,
+      videoUrl: originalVideoUrl,
+      compressedVideoUrl,
+      storagePath: publicId,
+      cloudinaryPublicId: publicId,
+    };
 
-    // 3. Create job FIRST with minimal metadata (don't wait for upload)
+    // 3. Create job with Cloudinary metadata
     const job = await createJob({
       userId: user.id,
-      videoMetadata: {
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-      },
+      videoMetadata,
       subject,
       language,
     });
@@ -50,8 +62,9 @@ export async function POST(req: NextRequest) {
     console.log("Created job:", job.id);
 
     // 4. Start async processing (don't await)
-    // Processor will upload file and update job with storage metadata
-    processVideoAnalysis(job.id, file, user.id, subject, language).catch(
+    // Use compressed URL for analysis if available, otherwise original
+    const analysisUrl = compressedVideoUrl || originalVideoUrl;
+    processVideoAnalysis(job.id, analysisUrl, user.id, subject, language, videoMetadata).catch(
       (error) => {
         console.error("Fatal error in background process:", error);
       }
@@ -63,7 +76,7 @@ export async function POST(req: NextRequest) {
         success: true,
         job,
       },
-      { status: 202 } // 202 Accepted - processing started
+      { status: 202 }
     );
 
   } catch (error: any) {

@@ -17,12 +17,25 @@ export async function POST(req: NextRequest) {
 
     // Authenticate user against MongoDB
     const user = await authenticateUser(email, password);
+    console.log("User authenticated:", { 
+      id: user.id, 
+      email: user.email, 
+      role: user.role,
+      institutionId: user.institutionId 
+    });
 
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens({
       id: user.id,
       email: user.email,
       role: user.role,
+      institutionId: user.institutionId,
+    });
+    console.log("Tokens generated with payload:", {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      institutionId: user.institutionId,
     });
 
     // Set refresh token in HTTP-only cookie
@@ -35,6 +48,7 @@ export async function POST(req: NextRequest) {
           email: user.email,
           name: user.name,
           role: user.role,
+          institutionId: user.institutionId,
         },
       },
       { status: 200 }

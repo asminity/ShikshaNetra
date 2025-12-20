@@ -6,6 +6,9 @@ export interface VideoMetadata {
   duration?: number;
   mimeType?: string;
   storagePath?: string;
+  videoUrl?: string;
+  compressedVideoUrl?: string;
+  cloudinaryPublicId?: string;
 }
 
 // --- NEW STATUS TYPES (Waterfall Logic) ---

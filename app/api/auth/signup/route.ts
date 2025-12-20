@@ -13,16 +13,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    const { email, password, name, role = "mentor" } = body;
+    const { email, password, name, role = "Mentor" } = body;
+    console.log("Signup request received", { email, name, role });
 
     // Register user in MongoDB
     const user = await registerUser(email, password, name, role);
+    console.log("User registered successfully", { 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role,
+      institutionId: user.institutionId 
+    });
 
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens({
       id: user.id,
       email: user.email,
       role: user.role,
+      institutionId: user.institutionId,
     });
 
     // Set refresh token in HTTP-only cookie
@@ -35,6 +43,7 @@ export async function POST(req: NextRequest) {
           email: user.email,
           name: user.name,
           role: user.role,
+          institutionId: user.institutionId,
         },
       },
       { status: 201 }

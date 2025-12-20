@@ -55,6 +55,9 @@ export default function SignupPage() {
 
     try {
       // Call the signup API
+      // Convert "Institution Admin" to "Institution Admin" role (keep capitalization)
+      const userRole = role; // Keep original role as selected
+
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: {
@@ -65,7 +68,7 @@ export default function SignupPage() {
           name: fullName,
           email,
           password,
-          role,
+          role: userRole,
         }),
       });
 
@@ -83,7 +86,13 @@ export default function SignupPage() {
       localStorage.setItem("shikshanetra_logged_in", "true");
 
       showToast("Account created successfully!");
-      router.push("/dashboard");
+      
+      // Redirect based on role
+      if (data.user.role === "Institution Admin") {
+        router.push(`/institution/dashboard`);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error) {
       console.error("Signup error:", error);
       setApiError(error instanceof Error ? error.message : "An error occurred. Please try again.");
@@ -166,9 +175,7 @@ export default function SignupPage() {
                               className="w-full h-10 appearance-none rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition-all focus:border-slate-800 focus:ring-1 focus:ring-slate-800 hover:border-slate-400"
                             >
                               <option>Mentor</option>
-                              <option>Coordinator</option>
                               <option>Institution Admin</option>
-                              <option>Other</option>
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                                <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>

@@ -6,6 +6,7 @@ export interface AuthenticatedRequest extends NextRequest {
     id: string;
     email: string;
     role?: string;
+    institutionId?: string;
   };
 }
 
