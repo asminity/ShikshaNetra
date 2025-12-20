@@ -7,7 +7,7 @@ export interface SignupRequest {
   email: string;
   password: string;
   name: string;
-  role?: "mentor" | "coordinator";
+  role?: "Mentor" | "Coordinator" | "Institution Admin";
 }
 
 export interface RefreshTokenRequest {

@@ -8,7 +8,7 @@ AI-powered pedagogical analysis platform for teaching session videos.
 <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript" />
 <img alt="Tailwind" src="https://img.shields.io/badge/TailwindCSS-3.x-38b2ac?logo=tailwindcss" />
 <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb" />
-<img alt="Supabase" src="https://img.shields.io/badge/Supabase-Storage-3FCF8E?logo=supabase" />
+<img alt="Cloudinary" src="https://img.shields.io/badge/Cloudinary-Uploads-1C9CEA?logo=cloudinary" />
 <a href="https://huggingface.co/spaces/genathon00/sikshanetra-model"><img alt="HF Space" src="https://img.shields.io/badge/Hugging%20Face-Model%20Space-blue?logo=huggingface" /></a>
 
 </div>
@@ -16,7 +16,7 @@ AI-powered pedagogical analysis platform for teaching session videos.
 ---
 
 ## 🌟 Overview
-ShikshaNetra analyzes audio, video, and text to deliver actionable insights on clarity, confidence, engagement, technical depth, and interaction quality. Secure storage and signed URLs ensure safe playback.
+ShikshaNetra analyzes audio, video, and text to deliver actionable insights on clarity, confidence, engagement, technical depth, and interaction quality. Direct Cloudinary uploads keep videos secure while reducing backend load.
 
 ## 🚀 Features
 
@@ -28,7 +28,7 @@ ShikshaNetra analyzes audio, video, and text to deliver actionable insights on c
   - Text analysis (technical depth, interaction index, topic relevance)
 - **Real-Time Dashboard**: View statistics, session history, and performance trends
 - **Detailed Reports**: In-depth analysis reports with video playback
-- **Secure Storage**: Private video storage with Supabase and signed URLs
+- **Secure Storage**: Direct-to-Cloudinary uploads with private delivery URLs
 
 ### User Management
 - **Authentication**: JWT-based authentication with refresh tokens
@@ -40,7 +40,7 @@ ShikshaNetra analyzes audio, video, and text to deliver actionable insights on c
 - **Performance Metrics**: Track clarity, confidence, engagement, and technical depth
 - **Trend Analysis**: Visualize performance across multiple sessions
 - **Coach Feedback**: AI-generated strengths and improvement suggestions
-- **Video Playback**: Secure on-demand video streaming with signed URLs
+- **Video Playback**: On-demand video streaming via Cloudinary delivery URLs
 
 ## 🛠️ Tech Stack
 
@@ -54,13 +54,13 @@ ShikshaNetra analyzes audio, video, and text to deliver actionable insights on c
 - **API**: Next.js API Routes
 - **Database**: MongoDB Atlas
 - **Authentication**: JWT with HTTP-only cookies
-- **Storage**: Supabase Storage (Private Bucket)
+- **Storage**: Cloudinary (unsigned preset uploads from browser)
 - **ML Service**: FastAPI Python microservice
 
 ### Infrastructure
-- **Video Storage**: Supabase with signed URLs (24h for ML, 1h for playback)
-- **File Upload**: Direct to Supabase, URL sent to ML service
-- **Security**: Private bucket with user ownership validation
+- **Video Storage**: Cloudinary with unsigned preset (folder: `video`)
+- **File Upload**: Direct from browser to Cloudinary; backend receives the URL
+- **Security**: Ownership enforced via authenticated job creation
 
 ## 📋 Prerequisites
 
@@ -68,7 +68,7 @@ Before you begin, ensure you have the following installed:
 - **Node.js** (v18 or higher)
 - **npm** or **yarn**
 - **MongoDB Atlas** account
-- **Supabase** account
+- **Cloudinary** account (unsigned upload preset ready)
 - **Python >=3.8 and <3.11** (for model service)
 
 ## 🔧 Installation & Setup
@@ -108,10 +108,10 @@ ML_MICROSERVICE_URL=http://localhost:8000
 # Node Environment
 NODE_ENV=development
 
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# Cloudinary Configuration (client-side upload)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=Shikshanetra
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_FOLDER=video
 ```
 
 ### 4. Database Setup
@@ -123,16 +123,12 @@ curl -X POST http://localhost:3000/api/db/init \
   -H "x-admin-secret: your-admin-secret"
 ```
 
-### 5. Supabase Storage Setup
+### 5. Cloudinary Upload Setup
 
-1. Create a Supabase project at [supabase.com](https://supabase.com)
-2. Copy your project URL and keys to `.env.local`
-3. Initialize the storage bucket:
-
-```bash
-curl -X POST http://localhost:3000/api/storage/init \
-  -H "x-admin-secret: your-admin-secret"
-```
+1. Create a Cloudinary account and grab your **cloud name**.
+2. Create an **unsigned upload preset** named `Shikshanetra`.
+3. Set the preset to use folder `video` (resource type: video). No API keys are needed client-side for unsigned uploads.
+4. Add the Cloudinary variables to `.env.local` as shown above.
 
 ### 6. Start the Development Server
 
@@ -221,7 +217,7 @@ ShikshaNetra/
 ├── lib/
 │   ├── config/                # Configuration files
 │   │   ├── database.ts       # MongoDB connection
-│   │   └── supabase.ts       # Supabase client setup
+│   │   └── supabase.ts       # Legacy Supabase client setup (not used for video uploads)
 │   ├── middleware/            # Express-like middleware
 │   │   └── auth.ts           # JWT authentication
 │   ├── models/                # Database models
@@ -230,7 +226,7 @@ ShikshaNetra/
 │   ├── services/              # Business logic
 │   │   ├── analysisService.ts # ML response transformation
 │   │   ├── authService.ts     # User authentication
-│   │   └── storageService.ts  # Supabase storage operations
+│   │   └── storageService.ts  # Legacy Supabase storage helpers
 │   ├── types/                 # TypeScript type definitions
 │   │   └── analysis.ts       # Analysis types
 │   ├── utils/                 # Utility functions
@@ -271,8 +267,8 @@ model/
 
 - **JWT Authentication**: Secure token-based authentication with refresh tokens
 - **HTTP-Only Cookies**: Refresh tokens stored securely
-- **Private Storage**: Videos stored in private Supabase bucket
-- **Signed URLs**: Temporary access URLs with expiration (24h for ML, 1h for playback)
+- **Private Storage**: Videos uploaded via Cloudinary unsigned preset (folder `video`)
+- **Delivery URLs**: Cloudinary secure delivery links passed through authenticated job creation
 - **User Validation**: Video access restricted to owners only
 - **Service Role Key**: Admin operations use separate credentials
 
@@ -292,11 +288,11 @@ model/
 - `GET /api/analyze/search` - Search analyses with filters
 
 ### Video
-- `GET /api/video/signed-url` - Generate signed URL for video playback
+- `GET /api/video/signed-url` - Deprecated (Cloudinary URLs are used directly)
 
 ### Admin
 - `POST /api/db/init` - Initialize database (requires admin secret)
-- `POST /api/storage/init` - Initialize storage bucket (requires admin secret)
+- `POST /api/storage/init` - Deprecated (Supabase storage removed)
 
 ## 📊 Database Schema
 

@@ -3,7 +3,6 @@ import { updateJob } from "@/lib/models/Job";
 import { updateMemoryFromAnalysis } from "@/lib/models/Memory";
 import { transformMLResponse } from "@/lib/services/analysisService";
 import { generateCoachFeedback, generateFallbackFeedback } from "@/lib/services/feedbackService";
-import { uploadVideoToStorage } from "@/lib/utils/videoUpload";
 import type { JobStatus } from "@/lib/types/job";
 import { Client } from "@gradio/client";
 
@@ -38,20 +37,28 @@ const HF_SPACE = "genathon00/sikshanetra-model";
  */
 export async function processVideoAnalysis(
   jobId: string,
-  file: File,
+  videoUrl: string,
   userId: string,
   subject: string,
-  language: string
+  language: string,
+  videoMetadataFromJob?: {
+    fileName?: string;
+    fileSize?: number;
+    mimeType?: string;
+    storagePath?: string;
+    videoUrl?: string;
+    compressedVideoUrl?: string;
+  }
 ) {
   const statusRank: Record<JobStatus, number> = {
     created: 0,
-    uploading: 1,
-    uploaded: 2,
-    analyzing: 3,
-    analysis_done: 4,
-    generating_feedback: 5,
-    completed: 6,
+    analyzing: 2,
+    analysis_done: 3,
+    generating_feedback: 4,
+    completed: 5,
     failed: 99,
+    uploading: 1, // legacy
+    uploaded: 2, // legacy
   };
 
   let currentStatus: JobStatus = "created";
@@ -75,26 +82,42 @@ export async function processVideoAnalysis(
   };
 
   try {
-    // PHASE 1 — UPLOAD
-    await setStatus("uploading", 5);
+    // PHASE 1 — DOWNLOAD (Cloudinary already stores the file)
+    // videoUrl parameter is the analysis URL (compressed if available)
+    // videoMetadataFromJob.videoUrl is the original URL for reports
+    const videoMetadata = {
+      fileName: videoMetadataFromJob?.fileName || "video.mp4",
+      fileSize: videoMetadataFromJob?.fileSize,
+      mimeType: videoMetadataFromJob?.mimeType,
+      storagePath: videoMetadataFromJob?.storagePath,
+      videoUrl: videoMetadataFromJob?.videoUrl || videoUrl, // Original URL for reports
+      compressedVideoUrl: videoMetadataFromJob?.compressedVideoUrl,
+    };
 
-    const uploadResult = await uploadVideoToStorage(file, userId);
-    if (!uploadResult.success || !uploadResult.videoMetadata) {
+    await setStatus("analyzing", 15, { videoMetadata });
+
+    // Download from analysis URL (compressed if provided, otherwise original)
+    const downloadResponse = await fetch(videoUrl);
+    if (!downloadResponse.ok) {
       await setStatus("failed", undefined, {
-        error: toUserFriendlyJobError(uploadResult.error || "Upload failed"),
+        error: toUserFriendlyJobError(
+          `Failed to download video for analysis (${downloadResponse.status})`
+        ),
       });
       return;
     }
 
-    const videoMetadata = uploadResult.videoMetadata;
-    await setStatus("uploaded", 20, { videoMetadata });
+    const buffer = await downloadResponse.arrayBuffer();
+    const mimeType =
+      videoMetadata.mimeType ||
+      downloadResponse.headers.get("content-type") ||
+      "video/mp4";
 
     // PHASE 2 — ANALYSIS
-    await setStatus("analyzing", 30);
+    await setStatus("analyzing", 35);
 
     const client = await Client.connect(HF_SPACE);
-    const buffer = await file.arrayBuffer();
-    const videoBlob = new Blob([buffer], { type: file.type });
+    const videoBlob = new Blob([buffer], { type: mimeType });
 
     const result = await client.predict(
       "/analyze_session_with_status",

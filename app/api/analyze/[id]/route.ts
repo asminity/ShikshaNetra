@@ -6,6 +6,8 @@ import {
   deleteAnalysis 
 } from "@/lib/models/Analysis";
 import { verifyAuth } from "@/lib/utils/verifyAuth"; // <--- Import the helper
+import { getDatabase } from "@/lib/db/mongodb";
+import { ObjectId } from "mongodb";
 
 // 1. GET: Fetch Report (Only Humans allowed)
 export async function GET(
@@ -26,8 +28,30 @@ export async function GET(
       return NextResponse.json({ error: "Analysis not found" }, { status: 404 });
     }
 
-    // Ownership Check
-    if (analysis.userId !== user.id) {
+    // Ownership Check: Allow if user owns it OR if user is Institution Admin and analysis belongs to a teacher in their institution
+    let canAccess = analysis.userId === user.id;
+    
+    if (!canAccess && user.role === "Institution Admin") {
+      // Check if analysis belongs to a teacher in the admin's institution
+      const db = await getDatabase();
+      const usersCollection = db.collection("users");
+      
+      let teacherObjectId: ObjectId;
+      try {
+        teacherObjectId = new ObjectId(analysis.userId);
+      } catch {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      
+      const teacher = await usersCollection.findOne({
+        _id: teacherObjectId,
+        institutionId: user.institutionId,
+      });
+      
+      canAccess = !!teacher;
+    }
+
+    if (!canAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

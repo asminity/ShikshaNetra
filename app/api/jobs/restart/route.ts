@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIncompleteJobs, getJobById, updateJob } from "@/lib/models/Job";
 import type { JobResponse } from "@/lib/types/job";
-import { getSignedVideoUrl } from "@/lib/services/storageService";
 import { processVideoAnalysis } from "@/lib/services/videoAnalysisProcessor";
 
 const INTERNAL_SERVICE_KEY = process.env.INTERNAL_SERVICE_KEY;
@@ -36,40 +35,14 @@ async function restartJobProcessing(jobId: string) {
       return;
     }
 
-    if (!job.videoMetadata?.storagePath) {
+    if (!job.videoMetadata?.videoUrl) {
       await updateJob(jobId, {
         status: "failed",
-        error: "Missing storage path; please re-upload and retry.",
+        error: "Missing video URL; please re-upload and retry.",
       });
-      console.error(`Job ${jobId} missing storagePath; marked failed.`);
+      console.error(`Job ${jobId} missing videoUrl; marked failed.`);
       return;
     }
-
-    const signedUrl = await getSignedVideoUrl(job.videoMetadata.storagePath, 3600);
-    if (!signedUrl) {
-      await updateJob(jobId, {
-        status: "failed",
-        error: "Could not fetch video from storage for restart. Please re-upload and retry.",
-      });
-      console.error(`Job ${jobId} unable to get signed URL; marked failed.`);
-      return;
-    }
-
-    const response = await fetch(signedUrl);
-    if (!response.ok) {
-      await updateJob(jobId, {
-        status: "failed",
-        error: "Failed to download video for restart. Please re-upload and retry.",
-      });
-      console.error(`Job ${jobId} download failed with status ${response.status}`);
-      return;
-    }
-
-    const buffer = await response.arrayBuffer();
-    const mimeType = job.videoMetadata.mimeType || "video/mp4";
-    const fileName = job.videoMetadata.fileName || "video.mp4";
-    const blob = new Blob([buffer], { type: mimeType });
-    const file = new File([blob], fileName, { type: mimeType });
 
     // Reset job status before reprocessing
     await updateJob(jobId, { status: "created", progress: 0, error: undefined });
@@ -77,7 +50,17 @@ async function restartJobProcessing(jobId: string) {
     const subject = job.subject || "General Teaching";
     const language = job.language || "English";
 
-    await processVideoAnalysis(jobId, file, job.userId, subject, language);
+    // Use compressed URL for analysis if available, otherwise original
+    const analysisUrl = job.videoMetadata.compressedVideoUrl || job.videoMetadata.videoUrl;
+
+    await processVideoAnalysis(
+      jobId,
+      analysisUrl,
+      job.userId,
+      subject,
+      language,
+      job.videoMetadata
+    );
     console.log(`Job ${jobId} restarted successfully`);
   } catch (error) {
     console.error(`Error restarting job ${jobId}:`, error);

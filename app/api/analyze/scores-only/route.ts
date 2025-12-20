@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { createAnalysis, updateAnalysis } from "@/lib/models/Analysis";
-import { uploadVideoToStorage } from "@/lib/utils/videoUpload";
 import { Client } from "@gradio/client";
 import { transformMLResponse } from "@/lib/services/analysisService";
 export const runtime = "nodejs";
@@ -17,12 +16,10 @@ export async function POST(req: NextRequest) {
     const user = authMiddleware(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
-    const subject = formData.get("subject") as string;
-    const language = formData.get("language") as string;
+    const body = await req.json();
+    const { originalVideoUrl, compressedVideoUrl, subject, language, fileName, fileSize, mimeType, publicId } = body || {};
 
-    if (!file || !subject || !language) {
+    if (!originalVideoUrl || !subject || !language) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
@@ -31,9 +28,18 @@ export async function POST(req: NextRequest) {
     // ---------------------------------------------------------
     const initialAnalysis = await createAnalysis({
       userId: user.id,
-      videoUrl: "", 
+      videoUrl: originalVideoUrl, 
       subject,
       language,
+      videoMetadata: {
+        fileName: fileName || "video.mp4",
+        fileSize,
+        mimeType,
+        videoUrl: originalVideoUrl,
+        compressedVideoUrl,
+        storagePath: publicId,
+        cloudinaryPublicId: publicId,
+      },
       // Status: Processing, Progress: 0%
       progress: 0,
       status: "processing" 
@@ -47,46 +53,39 @@ export async function POST(req: NextRequest) {
       try {
         console.log(`[Background] Starting job ${initialAnalysis.id}`);
         
-        // Update Progress: 10% (Started)
         await updateAnalysis(initialAnalysis.id, { progress: 10 });
 
-        // A. Parallel Execution (Upload + AI)
-        const [uploadResult, aiResult] = await Promise.all([
-          // Task 1: Upload to Supabase
-          uploadVideoToStorage(file, user.id).then(async (res) => {
-            if (res.success) {
-               // Update Progress: 40% (Video Uploaded)
-               await updateAnalysis(initialAnalysis.id, { progress: 40 });
-            }
-            return res;
-          }),
-
-          // Task 2: AI Prediction
-          (async () => {
-            const buffer = await file.arrayBuffer();
-            const client = await Client.connect(HF_SPACE);
-            const prediction = await client.predict("/analyze_session", {
-              video: new Blob([buffer], { type: file.type }),
-            });
-            return (prediction as any).data;
-          })()
-        ]);
-
-        // Progress: 80% (AI Done)
-        await updateAnalysis(initialAnalysis.id, { progress: 80 });
-
-        // B. Validation
-        if (!uploadResult.success || !uploadResult.videoMetadata) {
-          throw new Error("Upload failed: " + uploadResult.error);
+        // Use compressed URL for analysis if available, otherwise original
+        const analysisUrl = compressedVideoUrl || originalVideoUrl;
+        const downloadResponse = await fetch(analysisUrl);
+        if (!downloadResponse.ok) {
+          throw new Error(`Failed to fetch video (${downloadResponse.status})`);
         }
 
-        // C. Save Final Result
-        const [summary, scores, feedback, rawData] = aiResult;
+        const buffer = await downloadResponse.arrayBuffer();
+        const fallbackMime = mimeType || downloadResponse.headers.get("content-type") || "video/mp4";
+
+        const client = await Client.connect(HF_SPACE);
+        const prediction = await client.predict("/analyze_session", {
+          video: new Blob([buffer], { type: fallbackMime }),
+        });
+
+        await updateAnalysis(initialAnalysis.id, { progress: 80 });
+
+        const [summary, scores, feedback, rawData] = (prediction as any).data;
         
         const transformedData = transformMLResponse(
           { success: true, data: rawData },
           user.id,
-          uploadResult.videoMetadata,
+          {
+            fileName: fileName || "video.mp4",
+            fileSize,
+            mimeType: fallbackMime,
+            videoUrl: originalVideoUrl,
+            compressedVideoUrl,
+            storagePath: publicId,
+            cloudinaryPublicId: publicId,
+          },
           subject,
           language,
           (rawData as any)?.session_id
@@ -95,7 +94,7 @@ export async function POST(req: NextRequest) {
         // FINAL UPDATE: Completed (100%)
         await updateAnalysis(initialAnalysis.id, {
           ...transformedData,
-          videoUrl: uploadResult.videoMetadata.videoUrl,
+          videoUrl: originalVideoUrl,
           status: "completed",
           progress: 100
         });

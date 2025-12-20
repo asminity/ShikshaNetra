@@ -3,6 +3,8 @@ import { authMiddleware } from "@/lib/middleware/auth";
 import { searchAnalyses } from "@/lib/models/Analysis";
 import { AnalysisSearchFilters } from "@/lib/types/analysis";
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     // Verify authentication

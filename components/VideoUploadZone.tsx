@@ -9,6 +9,10 @@ interface VideoUploadZoneProps {
   subject: string;
   language: string;
   loading: boolean;
+  uploadStage: "idle" | "compressing" | "uploading" | "analyzing";
+  uploadProgress: number;
+  compressionProgress: number;
+  statusMessage?: string;
   onFileSelect: (file: File) => void;
   onSubjectChange: (subject: string) => void;
   onLanguageChange: (language: string) => void;
@@ -21,6 +25,10 @@ export function VideoUploadZone({
   subject,
   language,
   loading,
+  uploadStage,
+  uploadProgress,
+  compressionProgress,
+  statusMessage,
   onFileSelect,
   onSubjectChange,
   onLanguageChange,
@@ -82,6 +90,18 @@ export function VideoUploadZone({
     "Chinese",
     "Japanese",
   ];
+
+  const stageLabel = {
+    idle: "Run Analysis ✨",
+    compressing: "Compressing video…",
+    uploading: "Uploading to Cloudinary…",
+    analyzing: "Starting AI analysis…",
+  }[uploadStage];
+
+  const showProgress = uploadStage !== "idle";
+  const effectiveProgress = uploadStage === "compressing"
+    ? Math.min(100, Math.max(compressionProgress, 1))
+    : uploadProgress;
 
   return (
     <div className="space-y-8">
@@ -148,7 +168,7 @@ export function VideoUploadZone({
               </div>
               <div className="pt-2">
                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
-                    MP4, MOV, AVI (Max 500MB)
+                    MP4, MOV, AVI (Max 100MB)
                  </span>
               </div>
             </>
@@ -243,11 +263,11 @@ export function VideoUploadZone({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Processing Video...
+                    {stageLabel}
                   </>
                 ) : (
                   <>
-                    Run Analysis ✨
+                    {stageLabel}
                   </>
                 )}
               </span>
@@ -255,6 +275,21 @@ export function VideoUploadZone({
             <p className="mt-3 text-center text-xs text-slate-500">
                Typical analysis time: 2-5 minutes. You can leave the page safely.
             </p>
+
+            {showProgress && (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
+                  <span>{statusMessage || stageLabel}</span>
+                  <span>{effectiveProgress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-slate-900 transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, effectiveProgress))}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
