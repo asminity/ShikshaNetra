@@ -211,6 +211,37 @@ export default function DashboardPage() {
     });
   };
 
+  // Calculate overall growth/decline from last session
+  const getGrowthTag = (index: number) => {
+    if (index === 0) return null; // First session, no comparison
+    
+    // Check if previous exists
+    if (!filteredAnalyses[index] || !filteredAnalyses[index - 1]) return null;
+
+    const current = filteredAnalyses[index];
+    const previous = filteredAnalyses[index - 1];
+    
+    const currentScore = (current.clarityScore + current.confidenceScore + current.engagementScore) / 3;
+    const previousScore = (previous.clarityScore + previous.confidenceScore + previous.engagementScore) / 3;
+
+    if (previousScore <= 0) {
+      return { label: "→ --%", color: "bg-slate-100 text-slate-700", tooltip: "Baseline established" };
+    }
+    
+    const diff = currentScore - previousScore;
+    const percentChange = ((diff / previousScore) * 100).toFixed(1);
+    
+    if (diff > 2) {
+      return { label: `📈 +${percentChange}%`, color: "bg-green-100 text-green-700", tooltip: "Strong growth" };
+    } else if (diff > 0) {
+      return { label: `↗️ +${percentChange}%`, color: "bg-blue-100 text-blue-700", tooltip: "Slight improvement" };
+    } else if (diff < -2) {
+      return { label: `📉 ${percentChange}%`, color: "bg-red-100 text-red-700", tooltip: "Decline detected" };
+    } else {
+      return { label: `→ ${percentChange}%`, color: "bg-slate-100 text-slate-700", tooltip: "Stable" };
+    }
+  };
+
   if (!user || loading) {
     return <DashboardSkeleton />;
   }
@@ -418,13 +449,25 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {filteredAnalyses.map((analysis) => (
+                  {filteredAnalyses.map((analysis, index) => {
+                    const growthTag = getGrowthTag(index);
+                    return (
                     <tr
                       key={analysis.id}
                       className="group transition-colors hover:bg-slate-50/80"
                     >
                       <td className="px-6 py-4 text-sm text-slate-600 font-medium whitespace-nowrap">
-                        {formatDate(analysis.createdAt)}
+                        <div className="flex items-center gap-2">
+                          <span>{formatDate(analysis.createdAt)}</span>
+                          {growthTag && (
+                            <span 
+                              title={growthTag.tooltip}
+                              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${growthTag.color}`}
+                            >
+                              {`${growthTag.label} from last session`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">
                         {analysis.topic}
@@ -452,7 +495,8 @@ export default function DashboardPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
