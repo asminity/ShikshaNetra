@@ -6,8 +6,10 @@ export interface User {
   email: string;
   password?: string;
   name: string;
-  role: "mentor" | "coordinator";
+  role: "Mentor" | "Coordinator" | "Institution Admin";
   institutionId?: string; // optional institution reference
+  googleId?: string;
+  image?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

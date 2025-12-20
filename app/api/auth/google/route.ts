@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
           const newUser = await createUser({
             email,
             name: name || "Google User",
-            role: "mentor", // Default role
+            role: "Mentor", // Default role
             googleId,
             image: picture,
             password: "", // No password for Google users
