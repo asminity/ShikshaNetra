@@ -9,13 +9,7 @@ const nextConfig = {
     }
   },
   
-  // Configure API routes
-  api: {
-    bodyParser: {
-      sizeLimit: '500mb'
-    },
-    responseLimit: false
-  }
+
 };
 
 export default nextConfig;

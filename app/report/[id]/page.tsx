@@ -7,7 +7,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getWithAuth } from "@/lib/utils/api";
 import { TimeSegments, TimeSegment } from "@/components/TimeSegments";
-import { MinuteWiseAnalytics } from "@/components/MinuteWiseAnalytics";
+import dynamic from "next/dynamic";
+import { ReportSkeleton } from "@/components/skeletons/ReportSkeleton";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { ScoreCard } from "@/components/ScoreCard";
 import { 
   ChevronLeft, 
@@ -28,6 +30,15 @@ import {
   BrainCircuit,
   Lightbulb
 } from "lucide-react";
+
+// Lazy load heavy chart component
+const MinuteWiseAnalytics = dynamic(
+  () => import("@/components/MinuteWiseAnalytics").then((mod) => mod.MinuteWiseAnalytics),
+  {
+    loading: () => <Skeleton className="h-[400px] w-full rounded-xl" />,
+    ssr: false
+  }
+);
 
 interface Analysis {
   id: string;
@@ -256,15 +267,9 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
-            <p className="text-slate-500 font-medium">Analyzing session data...</p>
-        </div>
-      </div>
-    );
+    return <ReportSkeleton />;
   }
+
 
   if (!analysis) {
     return (
@@ -614,9 +619,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                                     <div className="flex-1">
                                         <p className="text-sm font-medium text-slate-800">{weakness}</p>
                                     </div>
-                                    <button className="invisible group-hover:visible text-xs font-semibold text-primary-600 hover:underline">
-                                        View Tips
-                                    </button>
+
                                 </Card>
                             ))}
                         </div>

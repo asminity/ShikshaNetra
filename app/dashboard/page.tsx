@@ -1,13 +1,32 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Card } from "@/components/Card";
 import { useToast } from "@/components/ToastContext";
 import { useRouter } from "next/navigation";
 import { getWithAuth } from "@/lib/utils/api";
-import { MetricsRadarChart, MetricsData } from "@/components/MetricsRadarChart";
-import { TimelineSummary } from "@/components/TimelineSummary";
+import { MetricsData } from "@/components/MetricsRadarChart";
+import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { ChevronRight, Filter, Calendar, BookOpen } from "lucide-react";
+
+// Lazy load heavy charts
+const MetricsRadarChart = dynamic(
+  () => import("@/components/MetricsRadarChart").then((mod) => mod.MetricsRadarChart),
+  { 
+    loading: () => <div className="flex justify-center items-center h-[300px]"><Skeleton className="h-[250px] w-[250px] rounded-full" /></div>,
+    ssr: false 
+  }
+);
+
+const TimelineSummary = dynamic(
+  () => import("@/components/TimelineSummary").then((mod) => mod.TimelineSummary),
+  {
+    loading: () => <div className="w-full h-[300px]"><Skeleton className="w-full h-full rounded-lg" /></div>,
+    ssr: false
+  }
+);
 
 interface UserData {
   id: string;
@@ -54,6 +73,9 @@ export default function DashboardPage() {
     const loggedIn = localStorage.getItem("shikshanetra_logged_in") === "true";
     
     if (!token && !loggedIn) {
+      // Don't redirect immediately to avoid flash if state is hydrating
+      // But here we rely on localStorage so it is sync-ish on mount.
+      // Show toast and push
       showToast("Please login to access dashboard");
       router.push("/login");
       return;
@@ -92,7 +114,8 @@ export default function DashboardPage() {
       setAnalyses(data.analyses || []);
     } catch (error) {
       console.error("Error fetching analyses:", error);
-      showToast("Failed to load analysis history");
+      // Don't show toast on initial load error to avoid annoying user if network blip
+      // showToast("Failed to load analysis history");
     } finally {
       setLoading(false);
     }
@@ -188,12 +211,8 @@ export default function DashboardPage() {
     });
   };
 
-  if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-slate-400 font-medium animate-pulse">Loading Dashboard...</div>
-      </div>
-    );
+  if (!user || loading) {
+    return <DashboardSkeleton />;
   }
 
   return (

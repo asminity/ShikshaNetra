@@ -22,6 +22,8 @@ export async function createUser(userData: CreateUserInput): Promise<UserRespons
     name: user.name,
     role: user.role,
     institutionId: user.institutionId,
+    googleId: user.googleId,
+    image: user.image,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -42,6 +44,8 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     name: user.name,
     role: user.role,
     institutionId: user.institutionId,
+    googleId: user.googleId,
+    image: user.image,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   } as User;
@@ -69,6 +73,8 @@ export async function getUserById(id: string): Promise<User | null> {
     name: user.name,
     role: user.role,
     institutionId: user.institutionId,
+    googleId: user.googleId,
+    image: user.image,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   } as User;
@@ -101,6 +107,8 @@ export async function updateUser(id: string, updates: UpdateUserInput): Promise<
     name: updated.name,
     role: updated.role,
     institutionId: updated.institutionId,
+    googleId: updated.googleId,
+    image: updated.image,
     createdAt: updated.createdAt,
     updatedAt: updated.updatedAt,
   } as User;

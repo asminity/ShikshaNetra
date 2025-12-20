@@ -39,6 +39,11 @@ export async function authenticateUser(
   }
 
   // Verify password
+  if (!user.password) {
+      // User likely signed up with Google/OAuth and has no password set
+      throw new Error("Please log in with Google");
+  }
+  
   const isPasswordValid = await verifyPassword(password, user.password);
   if (!isPasswordValid) {
     throw new Error("Invalid email or password");

@@ -160,15 +160,21 @@ export function VideoUploadZone({
       {fileName && (
         <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in duration-500">
           <div className="grid gap-6 sm:grid-cols-2">
-             {/* Subject Selection */}
              <div className="space-y-2">
                 <label className="block text-sm font-semibold text-slate-700">
                   Subject / Topic
                 </label>
                 <div className="relative">
                     <select
-                      value={subject}
-                      onChange={(e) => onSubjectChange(e.target.value)}
+                      value={subjects.includes(subject) ? subject : "Other"}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "Other") {
+                           onSubjectChange(""); // clear to let user type
+                        } else {
+                           onSubjectChange(val);
+                        }
+                      }}
                       disabled={loading}
                       className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 shadow-sm hover:border-slate-300 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500/10 disabled:bg-slate-50 disabled:text-slate-400 transition-all"
                     >
@@ -177,11 +183,26 @@ export function VideoUploadZone({
                           {s}
                         </option>
                       ))}
+                      <option value="Other">Other (Custom Topic)</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
                     </div>
                 </div>
+                
+                {/* Custom Subject Input */}
+                {(!subjects.includes(subject) || subject === "") && (
+                    <div className="animate-in fade-in slide-in-from-top-1 duration-200 pt-1">
+                        <input
+                           type="text"
+                           value={subject}
+                           onChange={(e) => onSubjectChange(e.target.value)}
+                           placeholder="Enter custom topic..."
+                           disabled={loading}
+                           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 shadow-sm hover:border-slate-300 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500/10 disabled:bg-slate-50 disabled:text-slate-400 transition-all placeholder:font-normal placeholder:text-slate-400"
+                        />
+                    </div>
+                )}
              </div>
 
              {/* Language Selection */}
