@@ -18,8 +18,20 @@ import {
   Users, 
   Lightbulb, 
   Calendar,
-  Layers
+  Layers,
+  AlertTriangle
 } from "lucide-react";
+
+// Robust mapping for field names
+const LABEL_MAP: Record<string, string> = {
+  clarityScore: "Clarity",
+  confidenceScore: "Confidence",
+  engagementScore: "Engagement",
+  technicalDepth: "Technical Depth",
+  interactionIndex: "Interaction",
+  gestureIndex: "Gestures",
+  topicRelevanceScore: "Topic Relevance"
+};
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +120,59 @@ export default function InsightsPage() {
      overallScore >= 60 ? "Proficient" :
      overallScore >= 45 ? "Developing" : "Beginner";
 
+  // Data Normalization for Weaknesses
+  // Handle case where backend might return object, array, or use alternate naming like 'waekness'
+  const rawWeaknesses = memory.weaknesses || (memory as any).waekness || (memory as any).weakness || [];
+  const weaknessesArray = Array.isArray(rawWeaknesses) 
+      ? rawWeaknesses 
+      : rawWeaknesses 
+          ? [rawWeaknesses] 
+          : [];
+
+  // Helper to find improvement text based on field name
+  const getImprovementText = (fieldName: string, score: number) => {
+      const tips: Record<string, string> = {
+          "Clarity": "Consider simplifying complex terms and slowing down your pace.",
+          "Confidence": "Practice maintaining eye contact and reducing filler words.",
+          "Engagement": "Try asking more rhetorical questions and using voice modulation.",
+          "Technical Depth": "Add more structured explanations and connect concepts to real-world scenarios.",
+          "Interaction": "Increase checks for understanding and encourage participation.",
+          "Gestures": "Use more open hand gestures to appear approachable.",
+          "Topic Relevance": "Stay focused on the main objectives."
+      };
+      
+      const label = LABEL_MAP[fieldName] || fieldName;
+      return tips[label] || "Focus on consistency to improve overall performance.";
+  };
+
+  // Helper for positive feedback
+  const getStrengthText = (fieldName: string) => {
+      const positives: Record<string, string> = {
+          "Clarity": "Your clear articulation makes complex topics easy to understand.",
+          "Confidence": "You exhibit a strong leadership presence that builds trust.",
+          "Engagement": "You naturally keep the audience hooked throughout the session.",
+          "Technical Depth": "Your deep subject knowledge adds significant value.",
+          "Interaction": "You create an inclusive environment by encouraging participation.",
+          "Gestures": "Your expressive body language effectively reinforces your points.",
+          "Topic Relevance": "You stay perfectly aligned with the session's learning goals."
+      };
+      return positives[fieldName] || "You demonstrate exceptional consistency in this area.";
+  };
+
+  // Logic to prevent overlap: Calculate Top Strengths first
+  const topStrengths = metrics
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+
+  const strengthNames = new Set(topStrengths.map(s => s.name));
+
+  // Filter out any weakness that is already listed as a strength
+  const filteredWeaknesses = weaknessesArray.filter((w: any) => {
+      const rawField = w.fieldName || w.field || "unknown";
+      const label = LABEL_MAP[rawField] || rawField.replace(/_/g, " ");
+      return !strengthNames.has(label);
+  });
+
   return (
     <div className="min-h-screen bg-white pb-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-10">
@@ -184,15 +249,14 @@ export default function InsightsPage() {
                   Top Strengths
                </h3>
                <ul className="space-y-3">
-                  {metrics
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 3)
-                    .map((m) => (
+                  {topStrengths.map((m) => (
                       <li key={m.name} className="flex items-start gap-3 text-sm text-slate-700 bg-emerald-50/50 p-3 rounded-lg">
                           <m.icon className="h-5 w-5 text-emerald-600 shrink-0" />
                           <div>
-                             <span className="font-semibold text-slate-900">{m.name}</span>
-                             <span className="text-slate-500"> is your strongest area ({m.score.toFixed(0)}/100).</span>
+                             <span className="font-semibold text-slate-900">{m.name}: </span>
+                             <span className="text-slate-600">
+                                ({m.score.toFixed(1)}/100). {getStrengthText(m.name)}
+                             </span>
                           </div>
                       </li>
                   ))}
@@ -208,18 +272,32 @@ export default function InsightsPage() {
                   Areas to Focus
                </h3>
                <ul className="space-y-3">
-                  {memory.weaknesses && memory.weaknesses.length > 0 ? (
-                     memory.weaknesses.slice(0, 3).map((w: any, idx: number) => (
-                        <li key={idx} className="flex items-start gap-3 text-sm text-slate-700 bg-amber-50/50 p-3 rounded-lg">
-                           <Zap className="h-5 w-5 text-amber-600 shrink-0" />
-                           <div>
-                              <span className="font-semibold text-slate-900 capitalize">{w.field?.replace(/_/g, " ")}:</span>
-                              <span className="text-slate-600"> needs attention to improve overall score.</span>
-                           </div>
-                        </li>
-                     ))
+                  {filteredWeaknesses.length > 0 ? (
+                     filteredWeaknesses.slice(0, 3).map((w: any, idx: number) => {
+                        // Safe field access
+                        const rawField = w.fieldName || w.field || "unknown";
+                        const label = LABEL_MAP[rawField] || rawField.replace(/_/g, " "); // Fallback to cleanup
+                        const score = w.latestScore ?? w.score ?? 0;
+                        
+                        return (
+                            <li key={idx} className="flex items-start gap-3 text-sm text-slate-700 bg-amber-50/50 p-3 rounded-lg">
+                                <Zap className="h-5 w-5 text-amber-600 shrink-0" />
+                                <div>
+                                    <span className="font-semibold text-slate-900 capitalize">{label}: </span>
+                                    {score > 0 ? (
+                                        <span className="text-slate-600">is low ({score.toFixed(1)}/100). {getImprovementText(rawField, score)}</span>
+                                    ) : (
+                                        <span className="text-slate-600">needs attention to improve overall score.</span>
+                                    )}
+                                </div>
+                            </li>
+                        );
+                     })
                   ) : (
-                     <li className="text-sm text-slate-500 italic">No critical weaknesses detected recently.</li>
+                     <li className="text-sm text-slate-500 italic flex items-center gap-2">
+                        <Leaf className="h-4 w-4 text-emerald-500" />
+                        No critical weaknesses detected recently.
+                     </li>
                   )}
                </ul>
            </div>

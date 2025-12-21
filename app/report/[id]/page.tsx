@@ -210,6 +210,105 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     return { label: "Needs Improvement", color: "orange", icon: <AlertCircle className="h-5 w-5" /> };
   };
 
+  const getInsights = () => {
+    if (!analysis) return { strengths: [], focusAreas: [] };
+
+    // Define metrics with descriptions and improvement tips
+    const metrics = [
+      { 
+        name: "Clarity", 
+        score: analysis.clarityScore, 
+        description: "Your explanations are clear, articulate, and easy to follow.", 
+        improvement: "Consider simplifying complex terms, slowing down your pace, and using more analogies." 
+      },
+      { 
+        name: "Confidence", 
+        score: analysis.confidenceScore, 
+        description: "You maintain a steady, assured delivery with good presence.", 
+        improvement: "Practice maintaining eye contact, using a steady voice tone, and reducing filler words." 
+      },
+      { 
+        name: "Engagement", 
+        score: analysis.engagementScore, 
+        description: "You successfully keep the audience interested and attentive.", 
+        improvement: "Try asking more rhetorical questions, using voice modulation, and adding interactive elements." 
+      },
+      { 
+        name: "Technical Depth", 
+        score: analysis.technicalDepth, 
+        description: "You demonstrate strong subject matter expertise and depth.", 
+        improvement: "Add more structured explanations, technical examples, and connect concepts to real-world scenarios." 
+      },
+      { 
+        name: "Interaction", 
+        score: analysis.interactionIndex, 
+        description: "You effectively involve the learners in the session.", 
+        improvement: "Increase the frequency of checks for understanding and encourage more participation." 
+      },
+      { 
+        name: "Topic Relevance", 
+        score: analysis.topicRelevanceScore, 
+        description: "Your content stays highly relevant to the core topic.", 
+        improvement: "Ensure you stay focused on the main objectives and avoid tangible digressions." 
+      },
+      {
+        name: "Gesture",
+        score: analysis.gestureIndex,
+        description: "Your body language and gestures support your message effectively.",
+        improvement: "Use more open hand gestures and avoid crossing arms to appear more approachable."
+      }
+    ];
+
+    // 1. Generate Strengths
+    // Sort descending by score
+    const sortedByScore = [...metrics].sort((a, b) => b.score - a.score);
+    
+    // Take top 3
+    const strengths = sortedByScore.slice(0, 3).map(m => {
+        let label = "Developing Strength";
+        let colorClass = "bg-yellow-100 text-yellow-700";
+        
+        if (m.score >= 70) {
+            label = "Primary Strength";
+            colorClass = "bg-green-100 text-green-700";
+        } else if (m.score >= 50) {
+            label = "Strong Area";
+            colorClass = "bg-blue-100 text-blue-700";
+        }
+        
+        return {
+            ...m,
+            label,
+            colorClass
+        };
+    });
+
+    // 2. Generate Areas to Focus
+    // Filter for low scores (< 75) AND exclude items that are already listed as strengths (overlap prevention)
+    const strengthNames = new Set(strengths.map(s => s.name));
+    const lowMetrics = metrics
+        .filter(m => m.score < 75 && !strengthNames.has(m.name))
+        .sort((a, b) => a.score - b.score);
+    
+    let focusAreas = [];
+    if (lowMetrics.length > 0) {
+        focusAreas = lowMetrics.slice(0, 3).map(m => ({
+            name: m.name,
+            score: m.score,
+            message: `⚡ ${m.name} is low (${Math.round(m.score)}/100). ${m.improvement}`
+        }));
+    } else {
+        // No critical weaknesses found
+        focusAreas.push({
+            name: "Consistency",
+            score: 100,
+            message: "✅ No critical weaknesses detected. Focus on maintaining consistency to improve overall performance."
+        });
+    }
+
+    return { strengths, focusAreas };
+  };
+
   // Generate time segments from analysis data
   // In a real app, this would come from the API
   const generateTimeSegments = (): TimeSegment[] => {
@@ -294,6 +393,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   };
 
   const overallStatus = getOverallStatus();
+  const { strengths: dynamicStrengths, focusAreas: dynamicFocusAreas } = getInsights();
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20 font-sans print:bg-white print:pb-0">
@@ -581,56 +681,55 @@ export default function ReportPage({ params }: { params: { id: string } }) {
            </section>
         )}
 
-        {/* 9. Actionable Insights ("Coach Feedback") */}
-        {(analysis.coachFeedback?.strengths || analysis.coachFeedback?.weaknesses) && (
-            <section className="grid gap-8 lg:grid-cols-2 mb-10">
-                {/* Strengths */}
-                {analysis.coachFeedback.strengths && analysis.coachFeedback.strengths.length > 0 && (
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600">
-                                 <CheckCircle2 className="h-5 w-5" />
-                             </div>
-                             <h2 className="text-xl font-bold text-slate-900">Key Strengths</h2>
+        {/* 9. Actionable Insights (Dynamic) */}
+        <section className="grid gap-8 lg:grid-cols-2 mb-10 break-inside-avoid">
+            {/* Strengths */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600">
+                            <CheckCircle2 className="h-5 w-5" />
                         </div>
-                        <div className="space-y-3">
-                            {analysis.coachFeedback.strengths.map((strength, i) => (
-                                <Card key={i} className="flex items-start gap-4 border-l-4 border-l-green-500 bg-white p-4 shadow-sm transition-all hover:translate-x-1">
-                                    <p className="text-sm font-medium text-slate-800">{strength}</p>
-                                </Card>
-                            ))}
+                        <h2 className="text-xl font-bold text-slate-900">Top Strengths</h2>
+                </div>
+                <div className="space-y-3">
+                    {dynamicStrengths.map((strength, i) => (
+                        <Card key={i} className="flex flex-col gap-1 border-l-4 border-l-green-500 bg-white p-4 shadow-sm transition-all hover:translate-x-1">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-slate-900">{strength.name} <span className="text-slate-400 font-normal">({Math.round(strength.score)}/100)</span></span>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${strength.colorClass}`}>
+                                    {strength.label}
+                                </span>
+                            </div>
+                            <p className="text-sm text-slate-600">{strength.description}</p>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+            
+            {/* Areas to Focus */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                            <Lightbulb className="h-5 w-5" />
                         </div>
-                    </div>
-                )}
-                
-                {/* Improvements */}
-                {analysis.coachFeedback.weaknesses && analysis.coachFeedback.weaknesses.length > 0 && (
-                     <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600">
-                                 <Lightbulb className="h-5 w-5" />
-                             </div>
-                             <h2 className="text-xl font-bold text-slate-900">Areas for Improvement</h2>
-                        </div>
-                        <div className="space-y-3">
-                            {analysis.coachFeedback.weaknesses.map((weakness, i) => (
-                                <Card key={i} className="group relative flex items-start gap-4 border-l-4 border-l-orange-500 bg-white p-4 shadow-sm transition-all hover:translate-x-1">
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-slate-800">{weakness}</p>
-                                    </div>
-
-                                </Card>
-                            ))}
-                        </div>
-                        <div className="mt-4 flex justify-end">
-                            <button className="flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-200 hover:bg-slate-800 hover:shadow-xl transition-all">
-                                <Zap className="h-4 w-4 text-yellow-400" /> Get AI Improvement Plan
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </section>
-        )}
+                        <h2 className="text-xl font-bold text-slate-900">Areas to Focus</h2>
+                </div>
+                <div className="space-y-3">
+                    {dynamicFocusAreas.map((area, i) => (
+                        <Card key={i} className="group relative flex items-start gap-4 border-l-4 border-l-orange-500 bg-white p-4 shadow-sm transition-all hover:translate-x-1">
+                            <div className="flex-1">
+                                <p className="text-sm font-medium text-slate-800">{area.message}</p>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+                <div className="mt-4 flex justify-end">
+                    <button className="flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-200 hover:bg-slate-800 hover:shadow-xl transition-all">
+                        <Zap className="h-4 w-4 text-yellow-400" /> Get AI Improvement Plan
+                    </button>
+                </div>
+            </div>
+        </section>
 
       </div>
     </div>

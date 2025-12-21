@@ -140,7 +140,7 @@ export default function DashboardPage() {
       filtered = filtered.filter((a) => new Date(a.createdAt) <= toDate);
     }
 
-    return filtered;
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [analyses, subjectFilter, dateFrom, dateTo]);
 
   // Get unique subjects for filter
@@ -213,32 +213,35 @@ export default function DashboardPage() {
 
   // Calculate overall growth/decline from last session
   const getGrowthTag = (index: number) => {
-    if (index === 0) return null; // First session, no comparison
-    
-    // Check if previous exists
-    if (!filteredAnalyses[index] || !filteredAnalyses[index - 1]) return null;
-
+    // Logic: Compare current session (index) with the immediately PREVIOUS chronological session (index + 1)
+    // Because the list is sorted Newest -> Oldest
     const current = filteredAnalyses[index];
-    const previous = filteredAnalyses[index - 1];
+    const previous = filteredAnalyses[index + 1];
+
+    // If no previous session exists (at index + 1), this is the BASELINE (First Session)
+    if (!previous) {
+        return { label: "Baseline Session", color: "bg-slate-100 text-slate-600 border border-slate-200", tooltip: "First recorded session", isBaseline: true };
+    }
     
     const currentScore = (current.clarityScore + current.confidenceScore + current.engagementScore) / 3;
     const previousScore = (previous.clarityScore + previous.confidenceScore + previous.engagementScore) / 3;
 
     if (previousScore <= 0) {
-      return { label: "→ --%", color: "bg-slate-100 text-slate-700", tooltip: "Baseline established" };
+      return { label: "Baseline", color: "bg-slate-100 text-slate-700", tooltip: "Previous score invalid", isBaseline: true };
     }
     
     const diff = currentScore - previousScore;
     const percentChange = ((diff / previousScore) * 100).toFixed(1);
+    const dateStr = new Date(previous.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     
     if (diff > 2) {
-      return { label: `📈 +${percentChange}%`, color: "bg-green-100 text-green-700", tooltip: "Strong growth" };
+      return { label: `📈 +${percentChange}%`, color: "bg-green-100 text-green-700", tooltip: `Compared to session on ${dateStr}`, isBaseline: false };
     } else if (diff > 0) {
-      return { label: `↗️ +${percentChange}%`, color: "bg-blue-100 text-blue-700", tooltip: "Slight improvement" };
+      return { label: `↗️ +${percentChange}%`, color: "bg-blue-100 text-blue-700", tooltip: `Compared to session on ${dateStr}`, isBaseline: false };
     } else if (diff < -2) {
-      return { label: `📉 ${percentChange}%`, color: "bg-red-100 text-red-700", tooltip: "Decline detected" };
+      return { label: `📉 ${percentChange}%`, color: "bg-red-100 text-red-700", tooltip: `Compared to session on ${dateStr}`, isBaseline: false };
     } else {
-      return { label: `→ ${percentChange}%`, color: "bg-slate-100 text-slate-700", tooltip: "Stable" };
+      return { label: `→ ${percentChange}%`, color: "bg-slate-100 text-slate-700", tooltip: `Compared to session on ${dateStr}`, isBaseline: false };
     }
   };
 
@@ -464,7 +467,7 @@ export default function DashboardPage() {
                               title={growthTag.tooltip}
                               className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${growthTag.color}`}
                             >
-                              {`${growthTag.label} from last session`}
+                              {growthTag.isBaseline ? growthTag.label : `${growthTag.label} from last session`}
                             </span>
                           )}
                         </div>
