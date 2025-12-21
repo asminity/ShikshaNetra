@@ -1,4 +1,5 @@
 import os
+import uuid
 import json
 import time
 from moviepy.video.io.VideoFileClip import VideoFileClip
@@ -6,85 +7,77 @@ from moviepy.audio.io.AudioFileClip import AudioFileClip
 from src.processors.audio_analyzer import AudioAnalyzer
 from src.processors.video_analyzer import VideoAnalyzer
 from src.processors.text_analyzer import TextAnalyzer
-from src.genai.coach import ShikshaCoach
-
-def extract_audio(video_path, audio_path="temp_audio.wav"):
-    """
-    Extracts audio from the video file and saves it to audio_path.
-    """
-    print(f"Extracting audio from {video_path}...")
-    try:
-        video = VideoFileClip(video_path)
-        video.audio.write_audiofile(audio_path, verbose=False, logger=None)
-        video.close()
-        return audio_path
-    except Exception as e:
-        print(f"Error extracting audio: {e}")
-        if 'video' in locals():
-            video.close()
-        return None
-
 import whisper
 
-def transcribe_audio(audio_path):
-    """
-    Transcribes audio using OpenAI's Whisper model.
-    """
-    print(f"Loading Whisper model and processing '{audio_path}'...")
-    
-    # 1. Load the model
-    # Options: "tiny", "base", "small", "medium", "large"
-    # "base" is a good balance of speed and accuracy for testing.
-    model = whisper.load_model("base")
-    
-    # 2. Transcribe the audio
-    # The 'fp16=False' argument prevents warnings if you are running on a CPU instead of a GPU
-    result = model.transcribe(audio_path, fp16=False)
-    
-    # 3. Return the text string
-    transcript = result["text"]
-    return transcript.strip()
+WHISPER_MODEL = None
+AUDIO_CACHE_DIR = os.path.abspath("audio_cache")
+os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
 
+def extract_audio(video_path):
+    audio_filename = f"{uuid.uuid4().hex}.wav"
+    audio_path = os.path.join(AUDIO_CACHE_DIR, audio_filename)
+
+    print(f"[AUDIO] Extracting to {audio_path}")
+
+    video = VideoFileClip(video_path)
+    video.audio.write_audiofile(
+        audio_path,
+        verbose=False,
+        logger=None
+    )
+    video.close()
+
+    # 🔒 HARD GUARANTEE
+    if not os.path.exists(audio_path):
+        raise RuntimeError("Audio extraction failed: file not created")
+
+    return audio_path
+
+def transcribe_audio(audio_path):
+    global WHISPER_MODEL
+
+    if WHISPER_MODEL is None:
+        print("[WHISPER] Loading model (one-time)...")
+        WHISPER_MODEL = whisper.load_model("base")
+
+    result = WHISPER_MODEL.transcribe(audio_path, fp16=False)
+    return result["text"].strip()
+
+
+# -----------------------------
+# MAIN PIPELINE
+# -----------------------------
 def process_session(video_path, topic_name="Machine Learning"):
-    """
-    Runs the full analysis pipeline on a video session.
-    """
+    print("🚨 process_session CALLED")
     if not os.path.exists(video_path):
-        print(f"Error: Video file not found at {video_path}")
+        print(f"Video not found: {video_path}")
         return None
 
-    print(f"\n--- Starting Analysis for Session: {video_path} ---")
     start_time = time.time()
-    
-    # 1. Extract Audio
     audio_path = extract_audio(video_path)
     if not audio_path:
         return None
 
     try:
-        # 2. Audio Analysis
-        print("Running Audio Analysis...")
-        audio_analyzer = AudioAnalyzer(audio_path)
-        audio_results = audio_analyzer.analyze()
-        print(f"Audio Scores: Clarity={audio_results['clarity_score']}, Confidence={audio_results['confidence_score']}")
+        print("[PIPELINE] Step 1: Audio analysis")
+        audio_results = AudioAnalyzer(audio_path).analyze()
+        print("[PIPELINE] Step 1 DONE")
 
-        # 3. Video Analysis
-        print("Running Video Analysis...")
+        print("[PIPELINE] Step 2: Video analysis")
         video_analyzer = VideoAnalyzer(video_path)
         video_results = video_analyzer.process_video()
-        print(f"Video Scores: Engagement={video_results['engagement_score']}, Gesture={video_results['gesture_index']}")
+        print("[PIPELINE] Step 2 DONE")
 
-        # 4. Transcription & Text Analysis
+        print("[PIPELINE] Step 3: Whisper load")
         transcript = transcribe_audio(audio_path)
-        print("Running Text Analysis...")
-        text_analyzer = TextAnalyzer(transcript)
-        # Define some keywords based on the topic (simplified)
-        keywords = ["Machine Learning", "supervised", "unsupervised", "neural network", "gradients", "Python"]
-        text_results = text_analyzer.analyze(topic_name, keywords)
-        print(f"Text Scores: Technical Depth={text_results['technical_depth']}, Interaction={text_results['interaction_index']}")
+        print("[PIPELINE] Step 3 DONE")
 
-        # 5. Aggregate Scores
-        final_report = {
+        print("[PIPELINE] Step 4: Text analysis")
+        text_results = TextAnalyzer(transcript).analyze(topic=topic_name)
+        print("[PIPELINE] Step 4 DONE")
+
+
+        return {
             "session_id": os.path.basename(video_path),
             "topic": topic_name,
             "transcript": transcript,
@@ -92,30 +85,24 @@ def process_session(video_path, topic_name="Machine Learning"):
                 "audio": audio_results,
                 "video": video_results,
                 "text": text_results
+            },
+            "metadata": {
+                "processing_time_sec": round(time.time() - start_time, 2)
             }
         }
 
-        # 6. GenAI Coach Feedback
-        print("Generating Coach Feedback...")
-        coach = ShikshaCoach()
-        feedback = coach.generate_comprehensive_report(transcript, final_report["scores"], topic_name)
-        final_report["coach_feedback"] = feedback
-
-        print("\n--- Analysis Completed ---")
-        print(f"Total Time: {round(time.time() - start_time, 2)}s")
-        
-        return final_report
-
     except Exception as e:
-        print(f"An error occurred during pipeline execution: {e}")
+        print(f"Pipeline error: {e}")
         return None
+    
     finally:
-        # Cleanup temp audio
-        if os.path.exists(audio_path):
+        # 🔥 GUARANTEED cleanup
+        if audio_path and os.path.exists(audio_path):
             try:
                 os.remove(audio_path)
-            except:
-                pass
+                print(f"[CLEANUP] Deleted audio file: {audio_path}")
+            except Exception as e:
+                print(f"[CLEANUP] Failed to delete audio file: {e}")
 
 if __name__ == "__main__":
     # Create a dummy video for testing if it doesn't exist

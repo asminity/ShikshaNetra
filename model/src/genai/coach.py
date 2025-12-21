@@ -77,6 +77,20 @@ class ShikshaCoach:
             return self._parse_json_response(response.text)
         except Exception as e:
             return {"error": f"GenAI generation failed: {e}"}
+        
+    def generate_from_prompt(self, prompt: str):
+        """
+        Uses the prompt EXACTLY as provided.
+        No augmentation. No hidden context.
+        """
+        if not self.model:
+            return "ERROR: GenAI model not initialized."
+
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"ERROR: GenAI generation failed: {e}"
 
     def chat_with_coach(self, query, context_history):
 

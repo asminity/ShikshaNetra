@@ -1,242 +1,226 @@
 import cv2
-import mediapipe as mp
 import numpy as np
 import os
+import logging
+from collections import deque, Counter
 from transformers import pipeline
 from PIL import Image
 from config.settings import FRAME_EXTRACTION_RATE
 
+logger = logging.getLogger(__name__)
+
+
 class VideoAnalyzer:
-    def __init__(self, video_path):
-        """
-        Initialize the VideoAnalyzer with the path to a video file.
-        """
+    """
+    OpenCV-based VideoAnalyzer
+
+    Metrics:
+    - engagement_score (face presence & size)
+    - gesture_index (motion energy)
+    - dominant_emotion (mode)
+    - confidence_score (signal availability)
+
+    Output:
+    - per_minute metrics
+    - overall aggregated metrics
+    """
+
+    def __init__(self, video_path: str):
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video file not found: {video_path}")
-        
+
         self.video_path = video_path
-        
-        # Initialize MediaPipe solutions
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.mp_hands = mp.solutions.hands
-        
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5
-        )
-        
-        self.hands = self.mp_hands.Hands(
-            static_image_mode=False,
-            max_num_hands=2,
-            min_detection_confidence=0.5
-        )
-        
-        # Initialize Hugging Face Emotion Classifier
+        logger.info("[VIDEO] Initializing VideoAnalyzer")
+
+        # ---------------- Face Detection ----------------
         try:
-            self.emotion_classifier = pipeline(
-                "image-classification", 
-                model="dima806/facial_emotions_image_detection",
-                top_k=1
-            )
+            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            self.face_cascade = cv2.CascadeClassifier(cascade_path)
+            if self.face_cascade.empty():
+                logger.warning("[VIDEO] Haar cascade failed to load")
+                self.face_cascade = None
         except Exception as e:
-            print(f"Warning: Could not initialize emotion classifier: {e}")
+            logger.warning(f"[VIDEO] Face cascade error: {e}")
+            self.face_cascade = None
+
+        # ---------------- Emotion Model (Optional) ----------------
+        self.enable_emotion = os.getenv("ENABLE_EMOTION", "false").lower() in ("1", "true")
+
+        if self.enable_emotion:
+            try:
+                self.emotion_classifier = pipeline(
+                    "image-classification",
+                    model="dima806/facial_emotions_image_detection",
+                    top_k=1
+                )
+            except Exception as e:
+                logger.warning(f"[VIDEO] Emotion model unavailable: {e}")
+                self.emotion_classifier = None
+        else:
             self.emotion_classifier = None
 
+        self.emotion_window = deque(maxlen=5)
+
+    # --------------------------------------------------
+    # Engagement (face presence proxy)
+    # --------------------------------------------------
     def analyze_engagement(self, frame):
-        results = self.face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        if self.face_cascade is None:
+            return 0.0, False
 
-        if not results.multi_face_landmarks:
-            return False
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
 
-        face_landmarks = results.multi_face_landmarks[0]
-        img_h, img_w, _ = frame.shape
+        if len(faces) == 0:
+            return 0.0, False
 
-        face_3d = []
-        face_2d = []
+        h, w = frame.shape[:2]
+        largest = max(faces, key=lambda r: r[2] * r[3])
+        area_ratio = (largest[2] * largest[3]) / (w * h)
 
-        landmark_ids = [1, 152, 33, 263, 61, 291]
+        # Adjusted logic:
+        # Base score 0.3 just for having a face
+        # Multiplier increased to 10.0 (so ~7% screen coverage gives 100%)
+        engagement = min(1.0, 0.3 + (area_ratio * 10.0))
+        return float(engagement), True
 
-        for idx, lm in enumerate(face_landmarks.landmark):
-            if idx in landmark_ids:
-                x, y = int(lm.x * img_w), int(lm.y * img_h)
-                face_2d.append([x, y])
-                face_3d.append([x, y, lm.z])
-
-        face_2d = np.array(face_2d, dtype=np.float64)
-        face_3d = np.array(face_3d, dtype=np.float64)
-
-        focal_length = img_w
-        cam_matrix = np.array([
-            [focal_length, 0, img_w / 2],
-            [0, focal_length, img_h / 2],
-            [0, 0, 1]
-        ])
-
-        dist_matrix = np.zeros((4, 1), dtype=np.float64)
-
-        success, rot_vec, trans_vec = cv2.solvePnP(face_3d, face_2d, cam_matrix, dist_matrix)
-
-        if not success:
-            return False
-
-        rmat, _ = cv2.Rodrigues(rot_vec)
-
-        # 🔥 FIXED — only extract angles
-        angles = cv2.RQDecomp3x3(rmat)[0]
-
-        pitch = angles[0] * 360
-        yaw = angles[1] * 360
-
-        return (-10 < pitch < 10) and (-10 < yaw < 10)
-
-
-    def analyze_gestures(self, frame):
-        """
-        Analyze gestures by tracking wrist positions.
-        Returns a list of wrist coordinates [(x, y), ...].
-        """
-        results = self.hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        
-        wrist_positions = []
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                # Wrist is landmark 0
-                wrist = hand_landmarks.landmark[0]
-                wrist_positions.append((wrist.x, wrist.y))
-        
-        return wrist_positions
-
-    def analyze_emotions(self, frame):
-        """
-        Analyzes the frame for facial emotions using DeepFace.
-        Returns the dominant emotion as a string (e.g., 'happy', 'sad').
-        """
-    def analyze_emotions(self, frame):
-        """
-        Analyzes the frame for facial emotions using Hugging Face Transformers.
-        Returns the dominant emotion as a string (e.g., 'happy', 'sad').
-        """
+    # --------------------------------------------------
+    # Emotion (optional)
+    # --------------------------------------------------
+    def analyze_emotion(self, frame):
         if self.emotion_classifier is None:
             return "neutral"
 
         try:
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = self.face_mesh.process(rgb_frame)
-
-            if not results.multi_face_landmarks:
-                # No face detected
-                return "neutral"
-
-            # Get bounding box from landmarks
-            h, w, _ = frame.shape
-            landmarks = results.multi_face_landmarks[0].landmark
-            x_coords = [lm.x for lm in landmarks]
-            y_coords = [lm.y for lm in landmarks]
-            
-            x_min = max(0, int(min(x_coords) * w))
-            x_max = min(w, int(max(x_coords) * w))
-            y_min = max(0, int(min(y_coords) * h))
-            y_max = min(h, int(max(y_coords) * h))
-
-            # Add some padding
-            pad_x = int((x_max - x_min) * 0.1)
-            pad_y = int((y_max - y_min) * 0.1)
-            x_min = max(0, x_min - pad_x)
-            x_max = min(w, x_max + pad_x)
-            y_min = max(0, y_min - pad_y)
-            y_max = min(h, y_max + pad_y)
-
-            if x_max - x_min < 10 or y_max - y_min < 10:
-                return "neutral"
-
-            face_crop = rgb_frame[y_min:y_max, x_min:x_max]
-            pil_image = Image.fromarray(face_crop)
-            
-            # Predict
-            predictions = self.emotion_classifier(pil_image)
-            # predictions is list of dicts: [{'score': 0.99, 'label': 'happy'}, ...]
-            if predictions:
-                return predictions[0]['label']
+            pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            pred = self.emotion_classifier(pil)
+            return pred[0]["label"] if pred else "neutral"
+        except Exception:
             return "neutral"
-            
-        except Exception as e:
-            # Fallback if analysis fails
-            print(f"Emotion analysis warning: {e}")
-            return "neutral"
-            
 
-
+    # --------------------------------------------------
+    # Main Processing
+    # --------------------------------------------------
     def process_video(self):
-        """
-        Process the video frame by frame and return aggregated analysis results.
-        """
         cap = cv2.VideoCapture(self.video_path)
-        
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        frames_per_minute = int(fps * 60)
+
         frame_count = 0
-        engaged_frames = 0
-        total_processed_frames = 0
-        
-        all_wrist_positions = []
-        emotion_counts = {}
-        
+        prev_gray = None
+
+        # Minute-level accumulators
+        per_minute = []
+        current = self._new_minute_bucket()
+
         while cap.isOpened():
             success, frame = cap.read()
             if not success:
                 break
-                
+
             frame_count += 1
-            
-            # Process only every Nth frame
             if frame_count % FRAME_EXTRACTION_RATE != 0:
                 continue
-                
-            total_processed_frames += 1
-            
-            # 1. Engagement
-            if self.analyze_engagement(frame):
-                engaged_frames += 1
-                
-            # 2. Gestures
-            wrists = self.analyze_gestures(frame)
-            all_wrist_positions.extend(wrists)
-            
-            # 3. Emotions
-            emotion = self.analyze_emotions(frame)
-            emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
-            
+
+            minute_idx = int(frame_count / frames_per_minute)
+
+            # New minute → flush
+            if minute_idx > current["minute"]:
+                per_minute.append(self._finalize_minute(current))
+                current = self._new_minute_bucket(minute_idx)
+
+            current["frames"] += 1
+
+            # ---------------- Engagement ----------------
+            engagement, face_found = self.analyze_engagement(frame)
+            current["engagement_sum"] += engagement
+            if face_found:
+                current["face_detected"] += 1
+
+            # ---------------- Motion / Gesture ----------------
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if prev_gray is not None:
+                diff = cv2.absdiff(prev_gray, gray)
+                _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+                motion_ratio = cv2.countNonZero(thresh) / thresh.size
+                current["gesture_energy"] += motion_ratio
+                if motion_ratio > 0.001:
+                    current["motion_detected"] += 1
+
+            prev_gray = gray
+
+            # ---------------- Emotion (Sparse) ----------------
+            if self.enable_emotion and current["frames"] % 5 == 0:
+                emotion = self.analyze_emotion(frame)
+                self.emotion_window.append(emotion)
+                smooth = Counter(self.emotion_window).most_common(1)[0][0]
+                current["emotion_counts"][smooth] += 1
+
         cap.release()
-        
-        # Calculate final scores
-        if total_processed_frames == 0:
+
+        if current["frames"] > 0:
+            per_minute.append(self._finalize_minute(current))
+
+        return {
+            "per_minute": per_minute,
+            "overall": self._aggregate_overall(per_minute)
+        }
+
+    # --------------------------------------------------
+    # Helpers
+    # --------------------------------------------------
+    def _new_minute_bucket(self, minute=0):
+        return {
+            "minute": minute,
+            "frames": 0,
+            "engagement_sum": 0.0,
+            "gesture_energy": 0.0,
+            "face_detected": 0,
+            "motion_detected": 0,
+            "emotion_counts": Counter()
+        }
+
+    def _finalize_minute(self, m):
+        if m["frames"] == 0:
+            return None
+
+        dominant_emotion = (
+            m["emotion_counts"].most_common(1)[0][0]
+            if m["emotion_counts"]
+            else "neutral"
+        )
+
+        return {
+            "minute": m["minute"],
+            "engagement_score": round((m["engagement_sum"] / m["frames"]) * 100, 2),
+            "gesture_index": round((m["gesture_energy"] / m["frames"]) * 100, 2),
+            "dominant_emotion": dominant_emotion,
+            "confidence_score": round(
+                (
+                    0.6 * (m["face_detected"] / m["frames"]) +
+                    0.4 * (m["motion_detected"] / m["frames"])
+                ) * 100,
+                2
+            )
+        }
+
+    def _aggregate_overall(self, per_minute):
+        if not per_minute:
             return {
                 "engagement_score": 0.0,
                 "gesture_index": 0.0,
-                "dominant_emotion": "neutral"
+                "dominant_emotion": "neutral",
+                "confidence_score": 0.0
             }
-            
-        engagement_score = (engaged_frames / total_processed_frames) * 100
-        
-        # Calculate gesture intensity (variance of wrist movement)
-        if not all_wrist_positions:
-            gesture_index = 0.0
-        else:
-            # Calculate variance of x and y coordinates
-            wrist_array = np.array(all_wrist_positions)
-            # If we have multiple hands, this simple variance might be noisy, 
-            # but it gives a rough idea of "amount of movement/spread"
-            variance = np.var(wrist_array, axis=0)
-            gesture_index = np.mean(variance) * 1000 # Scale up for readability
-            
-        # Dominant emotion
-        if not emotion_counts:
-            dominant_emotion = "neutral"
-        else:
-            dominant_emotion = max(emotion_counts, key=emotion_counts.get)
-            
+
+        engagement = [m["engagement_score"] for m in per_minute]
+        gesture = [m["gesture_index"] for m in per_minute]
+        confidence = [m["confidence_score"] for m in per_minute]
+        emotions = [m["dominant_emotion"] for m in per_minute]
+
         return {
-            "engagement_score": round(engagement_score, 2),
-            "gesture_index": round(gesture_index, 2),
-            "dominant_emotion": dominant_emotion
+            "engagement_score": round(float(np.mean(engagement)), 2),
+            "gesture_index": round(float(np.mean(gesture)), 2),
+            "confidence_score": round(float(np.mean(confidence)), 2),
+            "dominant_emotion": Counter(emotions).most_common(1)[0][0]
         }

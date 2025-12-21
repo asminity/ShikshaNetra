@@ -108,7 +108,7 @@ class TextAnalyzer:
             "relevance_score": round(relevance_score, 2)
         }
 
-    def analyze(self, topic, keywords):
+    def analyze(self, topic, keywords=None):
         """
         Perform full analysis.
         """
