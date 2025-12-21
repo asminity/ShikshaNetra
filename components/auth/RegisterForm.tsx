@@ -128,7 +128,6 @@ export function RegisterForm({ className }: RegisterFormProps) {
                     className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all disabled:opacity-50 bg-white/50 appearance-none"
                 >
                     <option value="Mentor">Mentor</option>
-                    <option value="Coordinator">Coordinator</option>
                     <option value="Institution Admin">Institution Admin</option>
                 </select>
             </div>

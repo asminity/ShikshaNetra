@@ -19,6 +19,7 @@ export async function createInstitution(
     const now = new Date();
     const doc: Institution = {
       name: data.name,
+      logoUrl: data.logoUrl,
       userIds: data.userIds ?? [],
       createdAt: now,
       updatedAt: now,
@@ -34,6 +35,7 @@ export async function createInstitution(
     return {
       id: result.insertedId.toString(),
       name: doc.name,
+      logoUrl: doc.logoUrl,
       userIds: doc.userIds,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -71,6 +73,7 @@ export async function getInstitutionById(
     return {
       id: inst._id.toString(),
       name: inst.name,
+      logoUrl: inst.logoUrl,
       userIds: inst.userIds ?? [],
       createdAt: inst.createdAt,
       updatedAt: inst.updatedAt,
@@ -107,6 +110,7 @@ export async function updateInstitution(
   return {
     id: inst._id!.toString(),
     name: inst.name,
+    logoUrl: inst.logoUrl,
     userIds: inst.userIds ?? [],
     createdAt: inst.createdAt,
     updatedAt: inst.updatedAt,
@@ -142,17 +146,20 @@ export async function addUserToInstitution(
     return null;
   }
 
-  const result = await collection.findOneAndUpdate(
+  const updateRes = await collection.updateOne(
     { _id: objectId },
-    { $addToSet: { userIds: userId }, $set: { updatedAt: new Date() } },
-    { returnDocument: "after" }
+    { $addToSet: { userIds: userId }, $set: { updatedAt: new Date() } }
   );
 
-  if (!result || !result.value) return null;
-  const inst = result.value as Institution;
+  if (updateRes.matchedCount === 0) return null;
+
+  const inst = await collection.findOne({ _id: objectId });
+  if (!inst) return null;
+
   return {
     id: inst._id!.toString(),
     name: inst.name,
+    logoUrl: inst.logoUrl,
     userIds: inst.userIds ?? [],
     createdAt: inst.createdAt,
     updatedAt: inst.updatedAt,
@@ -173,20 +180,23 @@ export async function removeUserFromInstitution(
     return null;
   }
 
-  const result = await collection.findOneAndUpdate(
+  const updateRes = await collection.updateOne(
     { _id: objectId },
     {
       $pull: { userIds: userId } as any,
       $set: { updatedAt: new Date() },
-    },
-    { returnDocument: "after" }
+    }
   );
 
-  if (!result) return null;
-  const inst = result as Institution;
+  if (updateRes.matchedCount === 0) return null;
+
+  const inst = await collection.findOne({ _id: objectId });
+  if (!inst) return null;
+
   return {
     id: inst._id!.toString(),
     name: inst.name,
+    logoUrl: inst.logoUrl,
     userIds: inst.userIds ?? [],
     createdAt: inst.createdAt,
     updatedAt: inst.updatedAt,

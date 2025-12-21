@@ -14,24 +14,24 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
-// export const validateEmail = (email: string): boolean => {
-//   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//   return emailRegex.test(email);
-// };
+export const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
-// export const validatePassword = (password: string): boolean => {
-//   // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
-//   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-//   return passwordRegex.test(password);
-// };
+export const validatePassword = (password: string): boolean => {
+  // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  return passwordRegex.test(password);
+};
 
 export const validateLoginRequest = (data: any): { valid: boolean; error?: string } => {
   if (!data.email || !data.password) {
     return { valid: false, error: "Email and password are required" };
   }
 
-//   if (!validateEmail(data.email)) {
-    if (!data.email) {
+  if (!validateEmail(data.email)) {
+    // if (!data.email) {
     return { valid: false, error: "Invalid email format" };
   }
 
@@ -43,8 +43,8 @@ export const validateSignupRequest = (data: any): { valid: boolean; error?: stri
     return { valid: false, error: "Email, password, and name are required" };
   }
 
-//   if (!validateEmail(data.email)) {
- if (!data.email) {
+  if (!validateEmail(data.email)) {
+//  if (!data.email) {
     return { valid: false, error: "Invalid email format" };
   }
 
