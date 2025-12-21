@@ -91,15 +91,16 @@ export async function updateUser(id: string, updates: UpdateUserInput): Promise<
     return null;
   }
 
-  const result = await collection.findOneAndUpdate(
+  const updateRes = await collection.updateOne(
     { _id: objectId },
-    { $set: { ...updates, updatedAt: new Date() } },
-    { returnDocument: "after" }
+    { $set: { ...updates, updatedAt: new Date() } }
   );
 
-  if (!result || !result.value) return null;
+  if (updateRes.matchedCount === 0) return null;
 
-  const updated = result.value;
+  const updated = await collection.findOne({ _id: objectId });
+  if (!updated) return null;
+
   return {
     id: updated._id.toString(),
     email: updated.email,

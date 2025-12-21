@@ -33,6 +33,7 @@ interface UserData {
   email: string;
   name: string;
   role: string;
+  institutionId?: string;
 }
 
 interface Analysis {
@@ -67,6 +68,7 @@ export default function DashboardPage() {
   const [subjectFilter, setSubjectFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [institutionName, setInstitutionName] = useState<string>("");
 
   useEffect(() => {
     const token = localStorage.getItem("shikshanetra_token");
@@ -86,6 +88,9 @@ export default function DashboardPage() {
       try {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
+        if (parsedUser?.institutionId) {
+          fetchInstitution(parsedUser.institutionId);
+        }
       } catch (error) {
         console.error("Error parsing user data:", error);
       }
@@ -100,7 +105,15 @@ export default function DashboardPage() {
     }
     
     fetchAnalysisHistory();
+    refreshUserFromServer();
   }, []);
+
+  // When user (and institutionId) changes, refetch institution
+  useEffect(() => {
+    if (user?.institutionId) {
+      fetchInstitution(user.institutionId);
+    }
+  }, [user?.institutionId]);
 
   const fetchAnalysisHistory = async () => {
     try {
@@ -118,6 +131,32 @@ export default function DashboardPage() {
       // showToast("Failed to load analysis history");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInstitution = async (institutionId: string) => {
+    try {
+      const res = await getWithAuth(`/api/institution/${institutionId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setInstitutionName(data?.institution?.name || "");
+    } catch (e) {
+      console.warn("Failed to load institution", e);
+    }
+  };
+
+  const refreshUserFromServer = async () => {
+    try {
+      const res = await getWithAuth(`/api/auth/me`);
+      if (!res.ok) return;
+      const freshUser = await res.json();
+      setUser(freshUser);
+      localStorage.setItem("shikshanetra_user", JSON.stringify(freshUser));
+      if (freshUser?.institutionId) {
+        fetchInstitution(freshUser.institutionId);
+      }
+    } catch (e) {
+      console.warn("Failed to refresh user", e);
     }
   };
 
@@ -258,6 +297,11 @@ export default function DashboardPage() {
           <div>
              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
              <p className="mt-2 text-slate-500 font-medium">Welcome back, {user.name}</p>
+             {institutionName && (
+               <p className="mt-1 text-slate-500 text-sm">
+                 Institution: <span className="font-semibold text-slate-700">{institutionName}</span>
+               </p>
+             )}
           </div>
           
           <div className="hidden md:block h-px flex-1 mx-8 bg-slate-200/60 self-center"></div>
