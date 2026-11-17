@@ -2,9 +2,9 @@ import { createAnalysis } from "@/lib/models/Analysis";
 import { updateJob } from "@/lib/models/Job";
 import { updateMemoryFromAnalysis } from "@/lib/models/Memory";
 import { transformMLResponse } from "@/lib/services/analysisService";
-import { generateCoachFeedback, generateFallbackFeedback } from "@/lib/services/feedbackService";
+import { generateFallbackFeedback } from "@/lib/services/feedbackService";
+import { analyzeOnSpace, spaceCoachFeedback } from "@/lib/services/hfSpace";
 import type { JobStatus } from "@/lib/types/job";
-import { Client } from "@gradio/client";
 
 export const runtime = "nodejs";
 
@@ -29,8 +29,6 @@ function toUserFriendlyJobError(raw: unknown): string {
 
   return msg.length > 180 ? `${msg.slice(0, 180)}…` : msg;
 }
-
-const HF_SPACE = "asminity12/sikshanetra-model";
 
 /**
  * Background processor for video analysis. Safe to call from routes.
@@ -116,24 +114,10 @@ export async function processVideoAnalysis(
     // PHASE 2 — ANALYSIS
     await setStatus("analyzing", 35);
 
-    const client = await Client.connect(HF_SPACE);
     const videoBlob = new Blob([buffer], { type: mimeType });
-
-    const result = await client.predict(
-      "/analyze_session_with_status",
-      { video: videoBlob, topic_name: subject }
-    );
-
-    if (!result || !result.data) {
-      await setStatus("failed", undefined, {
-        error: toUserFriendlyJobError("Analysis service returned no data"),
-      });
-      return;
-    }
+    const rawData = await analyzeOnSpace(videoBlob, subject);
 
     await setStatus("analysis_done", 70);
-
-    const [, , , rawData] = (result as any).data;
 
     const transformed = transformMLResponse(
       { success: true, data: rawData },
@@ -147,29 +131,19 @@ export async function processVideoAnalysis(
     // PHASE 3 — FEEDBACK
     await setStatus("generating_feedback", 75);
 
-    let coachFeedback: any;
+    // The Space writes the coach feedback as part of the analysis report.
+    let coachFeedback: any = spaceCoachFeedback(rawData);
     let coachFeedbackError: any;
 
-    try {
-      const feedbackResult = await generateCoachFeedback({
-        userId,
-        topic: rawData.topic || subject,
-        language,
-        transcript: rawData.transcript || "",
-        scores: rawData.scores,
-      });
-
-      if (feedbackResult.success) {
-        coachFeedback = feedbackResult.feedback;
-      } else {
-        coachFeedbackError = feedbackResult.error;
-        const user = await import("@/lib/models/User").then(m => m.getUserById(userId));
-        coachFeedback = generateFallbackFeedback(user?.name || "Teacher", rawData.scores);
-      }
-    } catch (err: any) {
-      coachFeedbackError = err?.message;
+    if (!coachFeedback) {
+      coachFeedbackError =
+        (rawData.coach_feedback as any)?.error || "Coach feedback missing from analysis report";
       const user = await import("@/lib/models/User").then(m => m.getUserById(userId));
-      coachFeedback = generateFallbackFeedback(user?.name || "Teacher", rawData.scores);
+      // Fallback reads flat score names; pass the overall audio/video scores.
+      coachFeedback = generateFallbackFeedback(user?.name || "Teacher", {
+        ...rawData.scores.audio.overall,
+        ...rawData.scores.video.overall,
+      });
     }
 
     await setStatus("generating_feedback", 90);

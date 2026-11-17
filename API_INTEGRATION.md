@@ -274,7 +274,7 @@ ADMIN_SECRET=your-admin-secret
 
 3. **Start Model Service (choose one):**
    - Use the deployed Hugging Face Space:
-     - https://huggingface.co/spaces/asminity12/sikshanetra-model
+     - https://huggingface.co/spaces/asminity12/Shikshanetra-model
 
 4. **Initialize Database Indexes:**
    ```bash
@@ -366,4 +366,4 @@ Common HTTP status codes:
 
 ## 💬 Support
 
-For issues or questions, check the ML service documentation at https://huggingface.co/spaces/asminity12/sikshanetra-model.
+For issues or questions, check the ML service documentation at https://huggingface.co/spaces/asminity12/Shikshanetra-model.

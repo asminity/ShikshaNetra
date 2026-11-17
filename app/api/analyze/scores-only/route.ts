@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { createAnalysis, updateAnalysis } from "@/lib/models/Analysis";
-import { Client } from "@gradio/client";
 import { transformMLResponse } from "@/lib/services/analysisService";
+import { analyzeOnSpace } from "@/lib/services/hfSpace";
 export const runtime = "nodejs";
 
-
-const HF_SPACE = "asminity12/sikshanetra-model";
 export const maxDuration = 300; 
 export const dynamic = 'force-dynamic';
 
@@ -65,15 +63,10 @@ export async function POST(req: NextRequest) {
         const buffer = await downloadResponse.arrayBuffer();
         const fallbackMime = mimeType || downloadResponse.headers.get("content-type") || "video/mp4";
 
-        const client = await Client.connect(HF_SPACE);
-        const prediction = await client.predict("/analyze_session", {
-          video: new Blob([buffer], { type: fallbackMime }),
-        });
+        const rawData = await analyzeOnSpace(new Blob([buffer], { type: fallbackMime }), subject);
 
         await updateAnalysis(initialAnalysis.id, { progress: 80 });
 
-        const [summary, scores, feedback, rawData] = (prediction as any).data;
-        
         const transformedData = transformMLResponse(
           { success: true, data: rawData },
           user.id,

@@ -9,7 +9,7 @@ AI-powered pedagogical analysis platform for teaching session videos.
 <img alt="Tailwind" src="https://img.shields.io/badge/TailwindCSS-3.x-38b2ac?logo=tailwindcss" />
 <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb" />
 <img alt="Cloudinary" src="https://img.shields.io/badge/Cloudinary-Uploads-1C9CEA?logo=cloudinary" />
-<a href="https://huggingface.co/spaces/asminity12/sikshanetra-model"><img alt="HF Space" src="https://img.shields.io/badge/Hugging%20Face-Model%20Space-blue?logo=huggingface" /></a>
+<a href="https://huggingface.co/spaces/asminity12/Shikshanetra-model"><img alt="HF Space" src="https://img.shields.io/badge/Hugging%20Face-Model%20Space-blue?logo=huggingface" /></a>
 
 </div>
 
@@ -55,7 +55,7 @@ ShikshaNetra analyzes audio, video, and text to deliver actionable insights on c
 - **Database**: MongoDB Atlas
 - **Authentication**: JWT with HTTP-only cookies
 - **Storage**: Cloudinary (unsigned preset uploads from browser)
-- **ML Service**: Hosted Hugging Face Space (`asminity12/sikshanetra-model`), called via `@gradio/client`
+- **ML Service**: Hosted Hugging Face Space (`asminity12/Shikshanetra-model`), called via `@gradio/client`
 
 ### Infrastructure
 - **Video Storage**: Cloudinary with unsigned preset (folder: `video`)
@@ -138,7 +138,7 @@ npm run dev
 The application will be available at `http://localhost:3000`
 
 ### 7. Model Service (Analysis)
-Analysis runs on the hosted Hugging Face Space: https://huggingface.co/spaces/asminity12/sikshanetra-model
+Analysis runs on the hosted Hugging Face Space: https://huggingface.co/spaces/asminity12/Shikshanetra-model
 
 The backend connects with `@gradio/client` (`lib/services/videoAnalysisProcessor.ts`, `lib/services/feedbackService.ts`) and calls:
 - `/analyze_session_with_status` with `{ video: Blob, topic_name: subject }` returns transcript + audio/video/text scores

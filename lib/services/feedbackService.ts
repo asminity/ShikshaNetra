@@ -2,8 +2,7 @@ import { CoachFeedback } from "@/lib/types/analysis";
 import { getMemoryByUserId } from "@/lib/models/Memory";
 import { getUserById } from "@/lib/models/User";
 import { Client } from "@gradio/client";
-
-const HF_SPACE = "asminity12/sikshanetra-model";
+import { HF_SPACE } from "@/lib/services/hfSpace";
 
 export interface FeedbackGenerationInput {
   userId: string;
