@@ -18,6 +18,7 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { UserAvatar } from "@/components/UserAvatar";
+import Link from "next/link";
 import {
   User,
   MapPin,
@@ -56,6 +57,10 @@ interface UserData {
   role: string;
   institutionId?: string;
   image?: string;
+  bio?: string;
+  location?: string;
+  organization?: string;
+  preferences?: { defaultSubject?: string; defaultLanguage?: string };
 }
 
 interface Analysis {
@@ -443,10 +448,20 @@ export default function ProfilePage() {
                   <span className="flex items-center gap-1">
                     <Award className="h-4 w-4" /> {user.role || "Mentor"}
                   </span>
-                  <span className="hidden sm:inline h-1 w-1 rounded-full bg-slate-300"></span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" /> Online
-                  </span>
+                  {user.location && (
+                    <>
+                      <span className="hidden sm:inline h-1 w-1 rounded-full bg-slate-300"></span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" /> {user.location}
+                      </span>
+                    </>
+                  )}
+                  {user.organization && (
+                    <>
+                      <span className="hidden sm:inline h-1 w-1 rounded-full bg-slate-300"></span>
+                      <span>{user.organization}</span>
+                    </>
+                  )}
                   {institutionName && (
                     <>
                       <span className="hidden sm:inline h-1 w-1 rounded-full bg-slate-300"></span>
@@ -457,13 +472,26 @@ export default function ProfilePage() {
                     </>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">
-                    Science
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">
-                    English
-                  </span>
+                {user.bio && (
+                  <p className="mt-2 max-w-xl text-sm text-slate-600">{user.bio}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  {[user.preferences?.defaultSubject, user.preferences?.defaultLanguage]
+                    .filter(Boolean)
+                    .map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  <Link
+                    href="/settings"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline"
+                  >
+                    <Settings className="h-3.5 w-3.5" /> Edit profile
+                  </Link>
                 </div>
               </div>
             </div>

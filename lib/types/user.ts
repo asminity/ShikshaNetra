@@ -1,6 +1,18 @@
 import { ObjectId } from "mongodb";
 
-export interface User {
+/** Optional profile details and preferences the user edits on /settings. */
+export interface UserProfileFields {
+  bio?: string;
+  phone?: string;
+  location?: string;
+  organization?: string;
+  preferences?: {
+    defaultSubject?: string;
+    defaultLanguage?: string;
+  };
+}
+
+export interface User extends UserProfileFields {
   _id?: ObjectId;
   id?: string;
   email: string;
@@ -28,7 +40,7 @@ export interface CreateUserInput {
   image?: string;
 }
 
-export interface UpdateUserInput {
+export interface UpdateUserInput extends UserProfileFields {
   email?: string;
   name?: string;
   role?: "Mentor" | "Coordinator" | "Institution Admin";

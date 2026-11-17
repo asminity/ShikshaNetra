@@ -4,6 +4,17 @@ import { User, UserResponse, CreateUserInput, UpdateUserInput } from "@/lib/type
 
 const COLLECTION_NAME = "users";
 
+/** Profile details edited on /settings; absent on older documents. */
+function profileFields(doc: any) {
+  return {
+    bio: doc.bio,
+    phone: doc.phone,
+    location: doc.location,
+    organization: doc.organization,
+    preferences: doc.preferences,
+  };
+}
+
 export async function createUser(userData: CreateUserInput): Promise<UserResponse> {
   const db = await getDatabase();
   const collection = db.collection(COLLECTION_NAME);
@@ -46,6 +57,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     institutionId: user.institutionId,
     googleId: user.googleId,
     image: user.image,
+    ...profileFields(user),
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   } as User;
@@ -75,6 +87,7 @@ export async function getUserById(id: string): Promise<User | null> {
     institutionId: user.institutionId,
     googleId: user.googleId,
     image: user.image,
+    ...profileFields(user),
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   } as User;
@@ -110,6 +123,7 @@ export async function updateUser(id: string, updates: UpdateUserInput): Promise<
     institutionId: updated.institutionId,
     googleId: updated.googleId,
     image: updated.image,
+    ...profileFields(updated),
     createdAt: updated.createdAt,
     updatedAt: updated.updatedAt,
   } as User;

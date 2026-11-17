@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Card } from "./Card";
 import { UploadCloud, CheckCircle2, X, FileVideo } from "lucide-react";
+import { SUBJECTS, LANGUAGES } from "@/lib/constants/teaching";
 
 interface VideoUploadZoneProps {
   fileName: string | null;
@@ -65,31 +66,8 @@ export function VideoUploadZone({
     }
   };
 
-  const subjects = [
-    "Data Structures",
-    "Algorithms",
-    "Machine Learning",
-    "Web Development",
-    "Python Programming",
-    "Mathematics",
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "History",
-    "Literature",
-    "General Teaching",
-  ];
-
-  const languages = [
-    "English – Indian",
-    "English – US",
-    "Hindi",
-    "Spanish",
-    "French",
-    "German",
-    "Chinese",
-    "Japanese",
-  ];
+  const subjects = SUBJECTS;
+  const languages = LANGUAGES;
 
   const stageLabel = {
     idle: "Run Analysis ✨",

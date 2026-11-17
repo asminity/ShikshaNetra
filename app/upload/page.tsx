@@ -41,6 +41,15 @@ export default function UploadPage() {
       return;
     }
     setIsAuthenticated(true);
+
+    // Start from the defaults chosen in Settings, if any.
+    try {
+      const prefs = JSON.parse(localStorage.getItem("shikshanetra_user") || "{}")?.preferences;
+      if (prefs?.defaultSubject) setSubject(prefs.defaultSubject);
+      if (prefs?.defaultLanguage) setLanguage(prefs.defaultLanguage);
+    } catch {
+      // Ignore a malformed stored user; the built-in defaults stay.
+    }
   }, [router, showToast]);
 
   // Job polling logic

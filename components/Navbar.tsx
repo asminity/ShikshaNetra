@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastContext";
-import { User, LogOut, ChevronDown, CircleUser } from "lucide-react";
+import { User, LogOut, ChevronDown, CircleUser, Settings } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { getWithAuth } from "@/lib/utils/api";
 
@@ -187,6 +187,14 @@ export function Navbar() {
                                 <CircleUser className="mr-2.5 h-4 w-4 text-slate-400 group-hover:text-primary-600" />
                                 My Profile
                             </Link>
+                            <Link
+                                href="/settings"
+                                className="group flex w-full items-center rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                onClick={() => setProfileOpen(false)}
+                            >
+                                <Settings className="mr-2.5 h-4 w-4 text-slate-400 group-hover:text-primary-600" />
+                                Settings
+                            </Link>
                             <div className="my-1 border-t border-slate-100"></div>
                             <button
                                 onClick={() => { handleLogout(); setProfileOpen(false); }}
@@ -241,6 +249,13 @@ export function Navbar() {
                    className={`rounded-md px-2 py-2 transition hover:bg-slate-50 flex items-center gap-2 ${pathname === "/profile" ? "bg-primary-50 text-primary-700" : ""}`}
                 >
                    <User className="h-4 w-4" /> Profile
+                </Link>
+                <Link
+                   href="/settings"
+                   onClick={() => setOpen(false)}
+                   className={`rounded-md px-2 py-2 transition hover:bg-slate-50 flex items-center gap-2 ${pathname === "/settings" ? "bg-primary-50 text-primary-700" : ""}`}
+                >
+                   <Settings className="h-4 w-4" /> Settings
                 </Link>
                 <button
                   onClick={() => {
