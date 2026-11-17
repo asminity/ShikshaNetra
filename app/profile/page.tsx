@@ -17,6 +17,7 @@ import {
   Filler,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   User,
   MapPin,
@@ -54,6 +55,7 @@ interface UserData {
   name: string;
   role: string;
   institutionId?: string;
+  image?: string;
 }
 
 interface Analysis {
@@ -428,9 +430,11 @@ export default function ProfilePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex flex-wrap items-center gap-5">
-              <div className="h-20 w-20 rounded-full bg-slate-200 flex items-center justify-center text-2xl font-bold text-slate-500 border-4 border-white shadow-sm shrink-0">
-                {user.name.charAt(0)}
-              </div>
+              <UserAvatar
+                image={user.image}
+                name={user.name}
+                className="h-20 w-20 bg-slate-200 text-2xl font-bold text-slate-500 border-4 border-white shadow-sm"
+              />
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">
                   {user.name}

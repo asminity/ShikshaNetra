@@ -5,6 +5,8 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastContext";
 import { User, LogOut, ChevronDown, CircleUser } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
+import { getWithAuth } from "@/lib/utils/api";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -12,6 +14,9 @@ export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userImage, setUserImage] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const refreshedUserRef = useRef(false);
   const pathname = usePathname();
   const router = useRouter();
   const { showToast } = useToast();
@@ -29,11 +34,32 @@ export function Navbar() {
         try {
           const user = JSON.parse(userData);
           setUserRole(user.role);
+          setUserImage(user.image || null);
+          setUserName(user.name || null);
+
+          // Sessions saved before the profile picture was stored lack `image`; fetch it once.
+          if (!("image" in user) && !refreshedUserRef.current) {
+            refreshedUserRef.current = true;
+            getWithAuth("/api/auth/me")
+              .then((res) => (res.ok ? res.json() : null))
+              .then((fresh) => {
+                if (!fresh) return;
+                localStorage.setItem(
+                  "shikshanetra_user",
+                  JSON.stringify({ ...user, ...fresh, image: fresh.image ?? "" })
+                );
+                setUserImage(fresh.image || null);
+              })
+              .catch(() => {});
+          }
         } catch (e) {
           setUserRole(null);
+          setUserImage(null);
         }
       } else {
         setUserRole(null);
+        setUserImage(null);
+        setUserName(null);
       }
       
       setIsLoading(false);
@@ -140,9 +166,12 @@ export function Navbar() {
                     onClick={() => setProfileOpen(!profileOpen)}
                     className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 pl-2 pr-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-100 active:scale-95"
                 >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-600">
-                        <User className="h-3.5 w-3.5" />
-                    </div>
+                    <UserAvatar
+                        image={userImage}
+                        name={userName}
+                        className="h-6 w-6 bg-slate-200 text-slate-600"
+                        fallback={<User className="h-3.5 w-3.5" />}
+                    />
                     <span className="text-xs font-semibold">Profile</span>
                     <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} />
                 </button>

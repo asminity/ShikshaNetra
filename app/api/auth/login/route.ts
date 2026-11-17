@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
           name: user.name,
           role: user.role,
           institutionId: user.institutionId,
+          image: user.image,
         },
       },
       { status: 200 }

@@ -77,6 +77,7 @@ export async function authenticateUser(
     name: user.name,
     role: user.role,
     institutionId: user.institutionId,
+    image: user.image,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
