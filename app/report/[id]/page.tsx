@@ -7,9 +7,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getWithAuth } from "@/lib/utils/api";
 import { TimeSegments, TimeSegment } from "@/components/TimeSegments";
-import dynamic from "next/dynamic";
 import { ReportSkeleton } from "@/components/skeletons/ReportSkeleton";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { MinuteByMinute, minuteMoments } from "@/components/MinuteByMinute";
 import { ScoreCard } from "@/components/ScoreCard";
 import { 
   ChevronLeft, 
@@ -30,15 +29,6 @@ import {
   BrainCircuit,
   Lightbulb
 } from "lucide-react";
-
-// Lazy load heavy chart component
-const MinuteWiseAnalytics = dynamic(
-  () => import("@/components/MinuteWiseAnalytics").then((mod) => mod.MinuteWiseAnalytics),
-  {
-    loading: () => <Skeleton className="h-[400px] w-full rounded-xl" />,
-    ssr: false
-  }
-);
 
 interface Analysis {
   id: string;
@@ -96,6 +86,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingVideo, setLoadingVideo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoSectionRef = useRef<HTMLDivElement>(null);
+  const pendingSeekRef = useRef<number | null>(null);
   
   // UI States
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
@@ -309,40 +301,32 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     return { strengths, focusAreas };
   };
 
-  // Generate time segments from analysis data
-  // In a real app, this would come from the API
-  const generateTimeSegments = (): TimeSegment[] => {
-    if (!analysis) return [];
-
-    const segments: TimeSegment[] = [];
-
-    // Example logic
-    if (analysis.engagementScore >= 80) {
-      segments.push({
-        startTime: 0,
-        endTime: 120,
-        label: "High Engagement Opening",
-        type: "highlight",
-        description: "Strong student engagement and interaction during introduction",
-      });
+  /** Play the recording from a given second, loading it first if needed. */
+  const seekTo = (seconds: number) => {
+    if (!analysis?.videoMetadata?.videoUrl) {
+      showToast("Recording not available for this session");
+      return;
     }
-
-    if (analysis.clarityScore < 70) {
-      segments.push({
-        startTime: 300,
-        endTime: 420,
-        label: "Clarity Issue Detected",
-        type: "warning",
-        description: "Reduced clarity in explanation - consider slowing pace",
-      });
+    videoSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const video = videoRef.current;
+    if (videoUrl && video) {
+      video.currentTime = seconds;
+      video.play().catch(() => {});
+      return;
     }
-    
-    // Add logic to use audio/video per minute data if available for segments?
-    // For now keeping simple fallback + API segments if existed.
-    
-    return segments;
+    pendingSeekRef.current = seconds;
+    setVideoUrl(analysis.videoMetadata.videoUrl);
   };
-  
+
+  const handleVideoLoaded = () => {
+    const video = videoRef.current;
+    if (video && pendingSeekRef.current !== null) {
+      video.currentTime = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+      video.play().catch(() => {});
+    }
+  };
+
   const handleTranscriptSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
       setTranscriptSearch(e.target.value);
       if (e.target.value && !isTranscriptExpanded) setIsTranscriptExpanded(true);
@@ -516,7 +500,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         <section className="mb-10 grid gap-8 lg:grid-cols-12 print:hidden">
             
             {/* Left: Video Player (8 cols) */}
-            <div className="lg:col-span-8 flex flex-col gap-4">
+            <div ref={videoSectionRef} className="lg:col-span-8 flex flex-col gap-4">
                <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-slate-900">Session Recording</h2>
                </div>
@@ -527,6 +511,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                             <video
                             ref={videoRef}
                             controls
+                            onLoadedMetadata={handleVideoLoaded}
                             className="w-full aspect-video object-contain bg-black"
                             src={videoUrl}
                             >
@@ -558,23 +543,19 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                <h2 className="text-lg font-semibold text-slate-900">Key Moments</h2>
                <Card className="h-full max-h-[500px] overflow-y-auto p-4 border-slate-200 shadow-sm">
                    <TimeSegments
-                       segments={generateTimeSegments()}
-                       videoRef={videoRef}
+                       segments={minuteMoments(analysis.audioPerMinute, analysis.videoPerMinute)}
+                       onSegmentClick={(segment) => seekTo(segment.startTime)}
                    />
                </Card>
             </div>
         </section>
         
-        {/* 6. Minute-wise Analytics */}
-        <section className="mb-10 break-inside-avoid">
-           <MinuteWiseAnalytics 
+        {/* 6. Minute by minute */}
+        <section className="mb-10">
+           <MinuteByMinute
              audioPerMinute={analysis.audioPerMinute}
              videoPerMinute={analysis.videoPerMinute}
-             previousMetrics={{
-               avgClarityScore: analysis.clarityScore,
-               avgConfidenceScore: analysis.confidenceScore,
-               avgEngagementScore: analysis.engagementScore,
-             }}
+             onSeek={analysis.videoMetadata?.videoUrl ? seekTo : undefined}
            />
         </section>
 
