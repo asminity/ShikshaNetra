@@ -162,7 +162,8 @@ export async function POST(
       { $set: { institutionId: institutionId, updatedAt: new Date() } },
       { returnDocument: "after" }
     );
-    const updatedTeacher = updateRes?.value as any;
+    // MongoDB driver v6+ returns the document directly (not { value })
+    const updatedTeacher = updateRes as any;
     console.log("Updated teacher institutionId via findOneAndUpdate", {
       teacherId,
       updatedInstitutionId: updatedTeacher?.institutionId,

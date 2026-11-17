@@ -189,15 +189,16 @@ export async function updateAnalysis(
     updateQuery.$set.status = newStatus.overall;
   }
 
-  const result = await collection.findOneAndUpdate(
+  // MongoDB driver v6+ returns the document directly (not { value })
+  const doc = await collection.findOneAndUpdate(
     { _id: objectId },
     updateQuery,
     { returnDocument: "after" }
   );
 
-  if (!result || !result.value) return null;
+  if (!doc) return null;
 
-  return mapDocumentToResponse(result.value);
+  return mapDocumentToResponse(doc);
 }
 
 export async function deleteAnalysis(id: string): Promise<boolean> {

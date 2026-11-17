@@ -274,7 +274,8 @@ export async function updateMemoryFromAnalysis(
     inc: { totalSessions: 1 },
   });
 
-  let doc = result?.value;
+  // MongoDB driver v6+ returns the document directly (not { value })
+  let doc = result;
 
   if (!doc) {
     doc = await collection.findOne({ userId });

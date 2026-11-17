@@ -3,7 +3,7 @@ import { getMemoryByUserId } from "@/lib/models/Memory";
 import { getUserById } from "@/lib/models/User";
 import { Client } from "@gradio/client";
 
-const HF_SPACE = "genathon00/sikshanetra-model";
+const HF_SPACE = "asminity12/sikshanetra-model";
 
 export interface FeedbackGenerationInput {
   userId: string;

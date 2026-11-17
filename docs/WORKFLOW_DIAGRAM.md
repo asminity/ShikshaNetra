@@ -20,7 +20,7 @@
         ▼                                   ▼
 ┌──────────────────┐              ┌──────────────────┐
 │  Upload Video    │              │  Send to ML      │
-│  to Supabase     │  (Parallel)  │  Model (Gradio)  │
+│  to Cloudinary   │  (Parallel)  │  Model (Gradio)  │
 │  Status:         │              │  Status:         │
 │  uploading (5%)  │              │  analyzing (30%) │
 └────────┬─────────┘              └────────┬─────────┘
@@ -201,14 +201,14 @@
        │                         │
        ▼                         ▼
 ┌──────────────┐          ┌──────────────┐
-│   MongoDB    │          │   Supabase   │
+│   MongoDB    │          │  Cloudinary  │
 │  (Analysis,  │          │   (Video     │
 │   Memory,    │          │   Storage)   │
 │   Jobs)      │          │              │
 └──────────────┘          └──────────────┘
 
 Flow:
-1. Next.js → Supabase (upload video)
+1. Browser → Cloudinary (upload video)
 2. Next.js → Python ML (analyze video)
 3. Python ML → Next.js (return scores)
 4. Next.js → MongoDB (fetch user + memory)
@@ -290,7 +290,7 @@ Flow:
      │                                                    │
      ├─► 0-5%:   Job Created                            │
      │                                                   │
-     ├─► 5-20%:  Uploading Video to Supabase           │
+     ├─► 5-20%:  Uploading Video to Cloudinary         │
      │                                                   │
      ├─► 20-30%: Video Uploaded                         │
      │                                                   │

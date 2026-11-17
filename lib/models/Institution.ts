@@ -98,15 +98,16 @@ export async function updateInstitution(
     return null;
   }
 
-  const result = await collection.findOneAndUpdate(
+  // MongoDB driver v6+ returns the document directly (not { value })
+  const doc = await collection.findOneAndUpdate(
     { _id: objectId },
     { $set: { ...updates, updatedAt: new Date() } },
     { returnDocument: "after" }
   );
 
-  if (!result || !result.value) return null;
+  if (!doc) return null;
 
-  const inst = result.value as Institution;
+  const inst = doc as unknown as Institution;
   return {
     id: inst._id!.toString(),
     name: inst.name,

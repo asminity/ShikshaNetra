@@ -123,15 +123,16 @@ export async function updateJob(
     updatedAt: now,
   });
 
-  const result: any = await collection.findOneAndUpdate(
+  // MongoDB driver v6+ returns the document directly (not { value })
+  const doc = await collection.findOneAndUpdate(
     { _id: objectId },
     { $set: updateDoc },
     { returnDocument: "after" }
   );
 
-  if (!result || !result.value) return null;
+  if (!doc) return null;
 
-  return mapDocumentToResponse(result.value);
+  return mapDocumentToResponse(doc);
 }
 
 /**

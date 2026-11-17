@@ -30,7 +30,7 @@ function toUserFriendlyJobError(raw: unknown): string {
   return msg.length > 180 ? `${msg.slice(0, 180)}…` : msg;
 }
 
-const HF_SPACE = "genathon00/sikshanetra-model";
+const HF_SPACE = "asminity12/sikshanetra-model";
 
 /**
  * Background processor for video analysis. Safe to call from routes.

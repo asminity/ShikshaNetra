@@ -9,7 +9,7 @@ AI-powered pedagogical analysis platform for teaching session videos.
 <img alt="Tailwind" src="https://img.shields.io/badge/TailwindCSS-3.x-38b2ac?logo=tailwindcss" />
 <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb" />
 <img alt="Cloudinary" src="https://img.shields.io/badge/Cloudinary-Uploads-1C9CEA?logo=cloudinary" />
-<a href="https://huggingface.co/spaces/genathon00/sikshanetra-model"><img alt="HF Space" src="https://img.shields.io/badge/Hugging%20Face-Model%20Space-blue?logo=huggingface" /></a>
+<a href="https://huggingface.co/spaces/asminity12/sikshanetra-model"><img alt="HF Space" src="https://img.shields.io/badge/Hugging%20Face-Model%20Space-blue?logo=huggingface" /></a>
 
 </div>
 
@@ -55,7 +55,7 @@ ShikshaNetra analyzes audio, video, and text to deliver actionable insights on c
 - **Database**: MongoDB Atlas
 - **Authentication**: JWT with HTTP-only cookies
 - **Storage**: Cloudinary (unsigned preset uploads from browser)
-- **ML Service**: FastAPI Python microservice
+- **ML Service**: Hosted Hugging Face Space (`asminity12/sikshanetra-model`), called via `@gradio/client`
 
 ### Infrastructure
 - **Video Storage**: Cloudinary with unsigned preset (folder: `video`)
@@ -69,7 +69,6 @@ Before you begin, ensure you have the following installed:
 - **npm** or **yarn**
 - **MongoDB Atlas** account
 - **Cloudinary** account (unsigned upload preset ready)
-- **Python >=3.8 and <3.11** (for model service)
 
 ## 🔧 Installation & Setup
 
@@ -139,25 +138,13 @@ npm run dev
 The application will be available at `http://localhost:3000`
 
 ### 7. Model Service (Analysis)
-Use the deployed Space or run locally.
+Analysis runs on the hosted Hugging Face Space: https://huggingface.co/spaces/asminity12/sikshanetra-model
 
-- Hugging Face: https://huggingface.co/spaces/genathon00/sikshanetra-model
-- Local: see `model/README.md`
+The backend connects with `@gradio/client` (`lib/services/videoAnalysisProcessor.ts`, `lib/services/feedbackService.ts`) and calls:
+- `/analyze_session_with_status` with `{ video: Blob, topic_name: subject }` returns transcript + audio/video/text scores
+- `/generate_genai_feedback` with `{ user_prompt }` returns Gemini coach feedback JSON
 
-Expected endpoint: `POST {ML_MICROSERVICE_URL}/analyze`
-
-Payload (current app sends downloaded video as base64):
-```json
-{
-  "video_data": "<base64>",
-  "video_filename": "session.mp4",
-  "video_mimeType": "video/mp4",
-  "topic": "General",
-  "language": "English",
-  "metadata": { "userId": "..." }
-}
-```
-Response includes transcript, scores, and coach_feedback JSON.
+The Space needs a `GEMINI_API_KEY` secret configured in its settings.
 
 ## 📱 Usage
 
@@ -216,8 +203,7 @@ ShikshaNetra/
 │   └── ToastContext.tsx
 ├── lib/
 │   ├── config/                # Configuration files
-│   │   ├── database.ts       # MongoDB connection
-│   │   └── supabase.ts       # Legacy Supabase client setup (not used for video uploads)
+│   │   └── jwt.ts            # JWT secrets and expiry
 │   ├── middleware/            # Express-like middleware
 │   │   └── auth.ts           # JWT authentication
 │   ├── models/                # Database models
@@ -225,8 +211,7 @@ ShikshaNetra/
 │   │   └── User.ts           # User schema
 │   ├── services/              # Business logic
 │   │   ├── analysisService.ts # ML response transformation
-│   │   ├── authService.ts     # User authentication
-│   │   └── storageService.ts  # Legacy Supabase storage helpers
+│   │   └── authService.ts     # User authentication
 │   ├── types/                 # TypeScript type definitions
 │   │   └── analysis.ts       # Analysis types
 │   ├── utils/                 # Utility functions
@@ -234,29 +219,6 @@ ShikshaNetra/
 │   │   └── videoUpload.ts    # Video upload utilities
 │   └── validators/            # Input validation
 │       └── auth.ts  
-model/
-├── config/
-│   └── __pycache__/                          
-│   └── settings.py                          
-├── src/
-│   ├── genai/
-│   │   ├── __init__.py
-│   │   ├── .env.sample
-│   │   ├── __pycache__/                          
-│   │   └── coach.py                    # High-level orchestrator
-│   │
-│   ├── processors/
-│   │   ├── __init__.py
-│   │   ├── audio_analyzer.py           # Audio ML logic
-│   │   ├── text_analyzer.py            # Text ML logic
-│   │   ├── video_analyzer.py           # Video ML logic
-│   │   └── pipeline.py                 # Pipeline combining processors
-│   │
-│   ├── app.py                          # FastAPI/Flask app (should host inference API)
-│   ├── main.py                         # Entry point (runs the server)
-│   ├── packages.txt
-│   ├── requirements.txt
-│   └── README.md         # Auth validation schemas
 ├── public/                    # Static assets
 ├── .env.local                 # Environment variables (not in repo)
 ├── .env.example              # Example environment variables
@@ -287,12 +249,8 @@ model/
 - `GET /api/analyze/[id]` - Get specific analysis details
 - `GET /api/analyze/search` - Search analyses with filters
 
-### Video
-- `GET /api/video/signed-url` - Deprecated (Cloudinary URLs are used directly)
-
 ### Admin
 - `POST /api/db/init` - Initialize database (requires admin secret)
-- `POST /api/storage/init` - Deprecated (Supabase storage removed)
 
 ## 📊 Database Schema
 

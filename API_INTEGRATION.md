@@ -200,12 +200,6 @@ MONGODB_URI=
 
 # Admin Secret
 ADMIN_SECRET=your-admin-secret
-
-
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 ## 🧬 Database Schema
@@ -280,9 +274,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 3. **Start Model Service (choose one):**
    - Use the deployed Hugging Face Space:
-     - https://huggingface.co/spaces/genathon00/sikshanetra-model  
-
-   - See `model/README.md` for more information.
+     - https://huggingface.co/spaces/asminity12/sikshanetra-model
 
 4. **Initialize Database Indexes:**
    ```bash
@@ -374,4 +366,4 @@ Common HTTP status codes:
 
 ## 💬 Support
 
-For issues or questions, check the ML service documentation at https://huggingface.co/spaces/genathon00/sikshanetra-model, or the model README in `model/README.md`.
+For issues or questions, check the ML service documentation at https://huggingface.co/spaces/asminity12/sikshanetra-model.

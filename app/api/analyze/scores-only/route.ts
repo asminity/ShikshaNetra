@@ -6,7 +6,7 @@ import { transformMLResponse } from "@/lib/services/analysisService";
 export const runtime = "nodejs";
 
 
-const HF_SPACE = "genathon00/sikshanetra-model";
+const HF_SPACE = "asminity12/sikshanetra-model";
 export const maxDuration = 300; 
 export const dynamic = 'force-dynamic';
 
