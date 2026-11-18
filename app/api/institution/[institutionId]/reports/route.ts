@@ -27,6 +27,14 @@ export async function GET(
       );
     }
 
+    // Only this institution's admin may read every member's reports
+    if (user.role !== "Institution Admin" || String(user.institutionId) !== String(institutionId)) {
+      return NextResponse.json(
+        { error: "Forbidden - Only institution admins can view reports" },
+        { status: 403 }
+      );
+    }
+
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50");

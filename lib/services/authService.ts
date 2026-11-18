@@ -3,11 +3,26 @@ import { createInstitution } from "@/lib/models/Institution";
 import { hashPassword, verifyPassword } from "@/lib/utils/password";
 import { UserResponse } from "@/lib/types/user";
 
+/** Optional details a user may provide at signup. Empty strings are dropped. */
+export interface SignupProfile {
+  phone?: string;
+  location?: string;
+  organization?: string;
+  image?: string;
+  institutionName?: string;
+}
+
+function clean(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export async function registerUser(
   email: string,
   password: string,
   name: string,
-  role: "Mentor" | "Coordinator" | "Institution Admin" = "Mentor"
+  role: "Mentor" | "Coordinator" | "Institution Admin" = "Mentor",
+  profile: SignupProfile = {}
 ): Promise<UserResponse> {
   // Check if user already exists
   const existingUser = await getUserByEmail(email);
@@ -23,7 +38,8 @@ export async function registerUser(
   if (role === "Institution Admin") {
     console.log("Creating institution for admin", { adminEmail: email, adminName: name });
     const institution = await createInstitution({
-      name: name, // Use the user's name as institution name
+      // Prefer the explicit institution name; fall back to organization, then the admin's name
+      name: clean(profile.institutionName) || clean(profile.organization) || name,
       userIds: [],
     });
     institutionId = institution.id;
@@ -37,9 +53,15 @@ export async function registerUser(
     name,
     role,
     institutionId,
+    phone: clean(profile.phone),
+    location: clean(profile.location),
+    organization:
+      clean(profile.organization) ||
+      (role === "Institution Admin" ? clean(profile.institutionName) : undefined),
+    image: clean(profile.image),
   });
 
-  console.log("Institution Admin user created", { 
+  console.log("User created", { 
     userId: user.id, 
     email: user.email, 
     role: user.role,

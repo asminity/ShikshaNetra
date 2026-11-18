@@ -63,8 +63,8 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
             </div>
 
             {/* Register Form Slot (Right) */}
-            <div className="w-1/2 h-full flex items-center justify-center p-8 bg-white transition-opacity duration-300">
-               <RegisterForm className={cn("transition-opacity duration-300", isLogin && "opacity-20 pointer-events-none")} />
+            <div className="w-1/2 h-full flex overflow-y-auto p-8 bg-white transition-opacity duration-300">
+               <RegisterForm className={cn("m-auto transition-opacity duration-300", isLogin && "opacity-20 pointer-events-none")} />
             </div>
         </div>
 

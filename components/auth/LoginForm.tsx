@@ -6,6 +6,7 @@ import { Loader2, Mail, Lock } from "lucide-react"; // Import Icons
 import { useToast } from "@/components/ToastContext";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 import { cn } from "@/lib/utils/cn";
+import { homeForRole } from "@/lib/utils/roles";
 
 interface LoginFormProps {
   className?: string;
@@ -51,7 +52,7 @@ export function LoginForm({ className }: LoginFormProps) {
       localStorage.setItem("shikshanetra_logged_in", "true");
 
       showToast("Login successful!");
-      router.push("/dashboard");
+      router.push(homeForRole(data.user?.role));
     } catch (error) {
         console.error("Login failure", error); 
         setApiError("Something went wrong. Please try again.");

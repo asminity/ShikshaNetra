@@ -16,6 +16,7 @@ import {
   Loader2,
   ChevronLeft,
   LogOut,
+  Building2,
 } from "lucide-react";
 import { Card } from "@/components/Card";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -43,6 +44,7 @@ interface SettingsUser {
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: UserIcon },
+  { id: "institution", label: "Institution", icon: Building2 },
   { id: "teaching", label: "Teaching preferences", icon: BookOpen },
   { id: "security", label: "Password & security", icon: ShieldCheck },
   { id: "account", label: "Account", icon: CircleUser },
@@ -120,6 +122,14 @@ export default function SettingsPage() {
 
   const [activeSection, setActiveSection] = useState<string>("profile");
 
+  // Institution (admins only)
+  const [institutionName, setInstitutionName] = useState("");
+  const [savedInstitutionName, setSavedInstitutionName] = useState("");
+  const [savingInstitution, setSavingInstitution] = useState(false);
+  const isAdmin = user?.role === "Institution Admin";
+  /** Admins manage an institution rather than teach, so they get "institution" instead of "teaching". */
+  const sections = SECTIONS.filter((s) => (isAdmin ? s.id !== "teaching" : s.id !== "institution"));
+
   const applyUser = (fresh: SettingsUser) => {
     setUser(fresh);
     setProfile({
@@ -154,7 +164,16 @@ export default function SettingsPage() {
       try {
         const res = await getWithAuth("/api/auth/me");
         if (!res.ok) throw new Error("Failed to load settings");
-        applyUser(await res.json());
+        const me = await res.json();
+        applyUser(me);
+        if (me.role === "Institution Admin" && me.institutionId) {
+          const instRes = await getWithAuth(`/api/institution/${me.institutionId}`);
+          if (instRes.ok) {
+            const name = (await instRes.json())?.institution?.name || "";
+            setInstitutionName(name);
+            setSavedInstitutionName(name);
+          }
+        }
       } catch (error) {
         console.error(error);
         showToast("Could not load your settings");
@@ -175,12 +194,13 @@ export default function SettingsPage() {
       },
       { rootMargin: "-80px 0px -55% 0px" }
     );
-    SECTIONS.forEach((s) => {
+    sections.forEach((s) => {
       const el = document.getElementById(s.id);
       if (el) observer.observe(el);
     });
     return () => observer.disconnect();
-  }, [loading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, isAdmin]);
 
   /** PATCH /api/auth/me and apply the result. Returns true on success. */
   const patchMe = async (payload: Record<string, unknown>, successMessage: string) => {
@@ -224,6 +244,39 @@ export default function SettingsPage() {
       showToast("Could not save your profile");
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const institutionDirty = institutionName.trim().replace(/\s+/g, " ") !== savedInstitutionName;
+
+  const handleInstitutionSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = institutionName.trim().replace(/\s+/g, " ");
+    if (name.length < 2) {
+      showToast("Institution name must be at least 2 characters");
+      return;
+    }
+    if (!user?.institutionId) return;
+    setSavingInstitution(true);
+    try {
+      const res = await fetchWithAuth(`/api/institution/${user.institutionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || "Could not rename your institution");
+        return;
+      }
+      const saved = data.institution?.name || name;
+      setInstitutionName(saved);
+      setSavedInstitutionName(saved);
+      showToast("Institution renamed");
+    } catch {
+      showToast("Could not rename your institution");
+    } finally {
+      setSavingInstitution(false);
     }
   };
 
@@ -366,13 +419,15 @@ export default function SettingsPage() {
           <ChevronLeft className="h-4 w-4" /> Back to profile
         </Link>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your profile, teaching defaults and sign-in.</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {isAdmin ? "Manage your profile, institution and sign-in." : "Manage your profile, teaching defaults and sign-in."}
+        </p>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
           {/* Section navigation: a sticky list on desktop, scrollable chips on small screens */}
           <nav aria-label="Settings sections" className="lg:sticky lg:top-24 lg:self-start">
             <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0">
-              {SECTIONS.map(({ id, label, icon: Icon }) => (
+              {sections.map(({ id, label, icon: Icon }) => (
                 <li key={id} className="shrink-0">
                   <a
                     href={`#${id}`}
@@ -533,7 +588,43 @@ export default function SettingsPage() {
               </form>
             </SectionCard>
 
+            {/* ---------------- Institution (admins) ---------------- */}
+            {isAdmin && (
+              <SectionCard
+                id="institution"
+                title="Institution"
+                description="The name your teachers see and that heads your institution dashboard."
+              >
+                <form onSubmit={handleInstitutionSave} className="space-y-5">
+                  <Field label="Institution name" htmlFor="institution-name" hint="2–120 characters.">
+                    <input
+                      id="institution-name"
+                      className={inputClass}
+                      value={institutionName}
+                      maxLength={120}
+                      autoComplete="organization"
+                      placeholder="e.g. Sunrise Public School"
+                      onChange={(e) => setInstitutionName(e.target.value)}
+                    />
+                  </Field>
+                  <div className="flex items-center justify-end gap-3">
+                    {institutionDirty && (
+                      <button
+                        type="button"
+                        onClick={() => setInstitutionName(savedInstitutionName)}
+                        className="text-sm font-medium text-slate-500 hover:text-slate-800"
+                      >
+                        Discard
+                      </button>
+                    )}
+                    <SaveButton saving={savingInstitution} disabled={!institutionDirty} />
+                  </div>
+                </form>
+              </SectionCard>
+            )}
+
             {/* ---------------- Teaching preferences ---------------- */}
+            {!isAdmin && (
             <SectionCard
               id="teaching"
               title="Teaching preferences"
@@ -573,6 +664,7 @@ export default function SettingsPage() {
                 </div>
               </form>
             </SectionCard>
+            )}
 
             {/* ---------------- Security ---------------- */}
             <SectionCard

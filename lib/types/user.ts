@@ -30,7 +30,7 @@ export interface UserResponse extends Omit<User, "password" | "_id"> {
   id: string;
 }
 
-export interface CreateUserInput {
+export interface CreateUserInput extends Omit<UserProfileFields, "preferences"> {
   email: string;
   password?: string;
   name: string;

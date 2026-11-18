@@ -8,6 +8,12 @@ export interface SignupRequest {
   password: string;
   name: string;
   role?: "Mentor" | "Coordinator" | "Institution Admin";
+  // Optional profile details collected at signup
+  phone?: string;
+  location?: string;
+  organization?: string;
+  image?: string;
+  institutionName?: string;
 }
 
 export interface RefreshTokenRequest {
@@ -58,6 +64,25 @@ export const validateSignupRequest = (data: any): { valid: boolean; error?: stri
 
   if (data.name.trim().length < 2) {
     return { valid: false, error: "Name must be at least 2 characters" };
+  }
+
+  if (data.role && !["Mentor", "Coordinator", "Institution Admin"].includes(data.role)) {
+    return { valid: false, error: "Invalid role" };
+  }
+
+  // Optional fields: only validated when provided
+  if (data.phone && !/^[+\d][\d\s()-]{6,19}$/.test(String(data.phone).trim())) {
+    return { valid: false, error: "Phone number looks invalid" };
+  }
+
+  if (data.image && !/^https?:\/\/\S+$/i.test(String(data.image).trim())) {
+    return { valid: false, error: "Avatar must be a valid http(s) image URL" };
+  }
+
+  for (const field of ["location", "organization", "institutionName"]) {
+    if (data[field] && String(data[field]).length > 120) {
+      return { valid: false, error: `${field} is too long (max 120 characters)` };
+    }
   }
 
   return { valid: true };

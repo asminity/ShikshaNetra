@@ -13,11 +13,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    const { email, password, name, role = "Mentor" } = body;
+    const {
+      email,
+      password,
+      name,
+      role = "Mentor",
+      phone,
+      location,
+      organization,
+      image,
+      institutionName,
+    } = body;
     console.log("Signup request received", { email, name, role });
 
     // Register user in MongoDB
-    const user = await registerUser(email, password, name, role);
+    const user = await registerUser(email, password, name, role, {
+      phone,
+      location,
+      organization,
+      image,
+      institutionName,
+    });
     console.log("User registered successfully", { 
       userId: user.id, 
       email: user.email, 
@@ -44,6 +60,7 @@ export async function POST(req: NextRequest) {
           name: user.name,
           role: user.role,
           institutionId: user.institutionId,
+          image: user.image ?? "",
         },
       },
       { status: 201 }

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/Card";
 import { useToast } from "@/components/ToastContext";
 import { getWithAuth } from "@/lib/utils/api";
+import { useRedirectInstitutionAdmin } from "@/lib/utils/roles";
 
 interface Analysis {
   id: string;
@@ -21,6 +22,7 @@ interface Analysis {
 }
 
 export default function HistoryPage() {
+  const redirectingAdmin = useRedirectInstitutionAdmin();
   const { showToast } = useToast();
   const router = useRouter();
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
@@ -129,6 +131,8 @@ export default function HistoryPage() {
       return { label: `→ ${percentChange}%`, color: "bg-slate-100 text-slate-700", tooltip: `Compared to session on ${dateStr}`, isBaseline: false };
     }
   };
+
+  if (redirectingAdmin) return null;
 
   if (loading) {
     return (

@@ -19,8 +19,13 @@ export async function createUser(userData: CreateUserInput): Promise<UserRespons
   const db = await getDatabase();
   const collection = db.collection(COLLECTION_NAME);
 
+  // Drop undefined optional fields so they aren't persisted as nulls
+  const provided = Object.fromEntries(
+    Object.entries(userData).filter(([, value]) => value !== undefined)
+  ) as CreateUserInput;
+
   const user = {
-    ...userData,
+    ...provided,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

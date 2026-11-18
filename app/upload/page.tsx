@@ -7,8 +7,10 @@ import { getWithAuth, postWithAuth } from "@/lib/utils/api";
 import { VideoUploadZone } from "@/components/VideoUploadZone";
 import { EnhancedJobTracker } from "@/components/EnhancedJobTracker";
 import { Sparkles, Check } from "lucide-react";
+import { useRedirectInstitutionAdmin } from "@/lib/utils/roles";
 
 export default function UploadPage() {
+  const redirectingAdmin = useRedirectInstitutionAdmin();
   const { showToast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -243,6 +245,8 @@ export default function UploadPage() {
       setLoading(false);
     }
   };
+
+  if (redirectingAdmin) return null;
 
   if (!isAuthenticated) return null;
 

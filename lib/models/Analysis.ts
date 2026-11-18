@@ -65,19 +65,23 @@ export async function createAnalysis(
   const db = await getDatabase();
   const collection = db.collection(COLLECTION_NAME);
 
-  // STRICT WATERFALL START
-  const initialStatus: ProcessingStatus = {
-    video: "processing", 
-    audio: "pending",    
-    text: "pending",     
-    overall: "processing"
-  };
+  // STRICT WATERFALL START — unless the caller is saving an already-finished
+  // analysis (the background processor creates the record only after ML + feedback).
+  const isComplete = analysisData.processingStatus?.overall === "completed";
+  const initialStatus: ProcessingStatus = isComplete
+    ? { video: "completed", audio: "completed", text: "completed", overall: "completed" }
+    : {
+        video: "processing",
+        audio: "pending",
+        text: "pending",
+        overall: "processing",
+      };
 
   const analysis = {
     ...analysisData,
     processingStatus: initialStatus,
-    status: "processing",
-    progress: 0, // <--- Initialize progress at 0
+    status: initialStatus.overall,
+    progress: isComplete ? 100 : 0,
     
     // Initialize defaults
     clarityScore: analysisData.clarityScore || 0,

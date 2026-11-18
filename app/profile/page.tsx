@@ -36,6 +36,7 @@ import {
   Calendar,
   ChevronRight,
 } from "lucide-react";
+import { homeForRole } from "@/lib/utils/roles";
 
 ChartJS.register(
   CategoryScale,
@@ -725,7 +726,7 @@ export default function ProfilePage() {
                 Recent Sessions
               </h3>
               <button
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push(homeForRole(user?.role))}
                 className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1"
               >
                 View Dashboard <ChevronRight className="h-4 w-4" />

@@ -10,6 +10,7 @@ import { MetricsData } from "@/components/MetricsRadarChart";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ChevronRight, Filter, Calendar, BookOpen } from "lucide-react";
+import { useRedirectInstitutionAdmin } from "@/lib/utils/roles";
 
 // Lazy load heavy charts
 const MetricsRadarChart = dynamic(
@@ -60,6 +61,7 @@ const normalizeInteractionIndex = (value: number = 0): number => {
 };
 
 export default function DashboardPage() {
+  const redirectingAdmin = useRedirectInstitutionAdmin();
   const { showToast } = useToast();
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
@@ -283,6 +285,8 @@ export default function DashboardPage() {
       return { label: `→ ${percentChange}%`, color: "bg-slate-100 text-slate-700", tooltip: `Compared to session on ${dateStr}`, isBaseline: false };
     }
   };
+
+  if (redirectingAdmin) return null;
 
   if (!user || loading) {
     return <DashboardSkeleton />;

@@ -96,10 +96,9 @@ export function Navbar() {
   const getNavLinks = () => {
     if (userRole === "Institution Admin") {
       return [
-        { href: "/institution/dashboard", label: "Dashboard" },
-        { href: "/institution/upload", label: "Upload" },
-        { href: "/institution/history", label: "History" },
-        { href: "/institution/summaries", label: "Summaries" },
+        { href: "/institution/dashboard", label: "Overview" },
+        { href: "/institution/history", label: "Sessions" },
+        { href: "/institution/summaries", label: "Teacher Insights" },
       ];
     }
     

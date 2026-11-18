@@ -21,6 +21,7 @@ import {
   Layers,
   AlertTriangle
 } from "lucide-react";
+import { useRedirectInstitutionAdmin } from "@/lib/utils/roles";
 
 // Robust mapping for field names
 const LABEL_MAP: Record<string, string> = {
@@ -36,6 +37,7 @@ const LABEL_MAP: Record<string, string> = {
 export const dynamic = "force-dynamic";
 
 export default function InsightsPage() {
+  const redirectingAdmin = useRedirectInstitutionAdmin();
   const { showToast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,8 @@ export default function InsightsPage() {
       setLoading(false);
     }
   };
+
+  if (redirectingAdmin) return null;
 
   if (loading) {
     return (

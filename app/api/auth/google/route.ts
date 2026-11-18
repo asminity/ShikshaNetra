@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
       id: user.id,
       email: user.email,
       role: user.role,
+      institutionId: user.institutionId,
     });
 
     const response = NextResponse.json(
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
           email: user.email,
           name: user.name,
           role: user.role,
+          institutionId: user.institutionId,
           image: user.image || picture // Return image if available
         },
       },

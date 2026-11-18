@@ -4,6 +4,7 @@ import React from 'react';
 import { GoogleLogin } from "@react-oauth/google";
 import { useToast } from "@/components/ToastContext";
 import { useRouter } from "next/navigation";
+import { homeForRole } from "@/lib/utils/roles";
 
 export function GoogleAuthButton({ mode = "signin" }: { mode?: "signin" | "signup" }) {
   const { showToast } = useToast();
@@ -35,7 +36,7 @@ export function GoogleAuthButton({ mode = "signin" }: { mode?: "signin" | "signu
 
       showToast(`Welcome ${data.user?.name || "User"}!`);
       // Start navigation but stick to loading state
-      router.push("/dashboard");
+      router.push(homeForRole(data.user?.role));
 
     } catch (err: any) {
         console.error(err);
