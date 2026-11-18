@@ -15,7 +15,8 @@ import {
   Users, 
   Building2, 
   Binary, 
-  Sparkles 
+  Sparkles,
+  Eye
 } from "lucide-react";
 
 export default function HomePage() {
@@ -47,6 +48,23 @@ export default function HomePage() {
           <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
             {/* Left Content */}
             <div className="max-w-2xl">
+               {/* Brand wordmark */}
+               <div className="mb-8 flex items-center gap-4">
+                  <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-900 shadow-lg shadow-primary-900/20 ring-1 ring-white/10 sm:h-16 sm:w-16">
+                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary-400/25 to-transparent" />
+                     <Eye className="relative h-7 w-7 text-primary-400 sm:h-8 sm:w-8" strokeWidth={2.25} />
+                  </div>
+                  <div className="leading-none">
+                     <p className="text-4xl font-extrabold tracking-tight sm:text-5xl">
+                        <span className="text-slate-900">Shiksha</span>
+                        <span className="text-primary-600">Netra</span>
+                     </p>
+                     <p className="mt-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
+                        शिक्षा नेत्र <span className="mx-1.5 text-primary-500">·</span> The Eye of Education
+                     </p>
+                  </div>
+               </div>
+
                <div className="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-sm font-medium text-primary-700 ring-1 ring-inset ring-primary-700/10 mb-6">
                   <span className="flex h-2 w-2 rounded-full bg-primary-600"></span>
                   AI-Powered Mentor Evaluation
